@@ -19,7 +19,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.hazelcast</groupId>
+        <groupId>com.seeburger.bis6</groupId>
         <artifactId>hazelcast-root</artifactId>
         <version>3.1.1.SEE1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>

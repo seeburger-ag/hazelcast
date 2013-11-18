@@ -577,13 +577,13 @@
 
     <distributionManagement>
         <repository>
-            <id>release-repository</id>
-            <url>https://repo.seeburger.de/archiva/repository/release</url>
+            <id>release</id>
+            <url>https://repo.seeburger.de/archiva/repository/release/</url>
         </repository>
         <snapshotRepository>
-            <id>snapshot-repository</id>
+            <id>snapshot</id>
             <name>Maven2 Snapshot Repository</name>
-            <url>https://repo.seeburger.de/archiva/repository/snapshot</url>
+            <url>https://repo.seeburger.de/archiva/repository/snapshot/</url>
             <uniqueVersion>false</uniqueVersion>
         </snapshotRepository>
     </distributionManagement>

@@ -75,9 +75,9 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git:git://github.com/hazelcast/hazelcast.git</connection>
-        <developerConnection>scm:git:git@github.com:hazelcast/hazelcast.git</developerConnection>
-        <url>https://github.com/hazelcast/hazelcast/</url>
+        <connection>scm:git:git://github.com/seeburger-ag/hazelcast.git</connection>
+        <developerConnection>scm:git:git@github.com:seeburger-ag/hazelcast.git</developerConnection>
+        <url>https://github.com/seeburger-ag/hazelcast/</url>
     </scm>
     <developers>
         <developer>

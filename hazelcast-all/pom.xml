@@ -19,7 +19,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.seeburger.bis6</groupId>
+        <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-root</artifactId>
         <version>3.1.1.SEE1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -115,37 +115,37 @@
                             <outputDirectory>${project.build.directory}/sources</outputDirectory>
                             <artifactItems>
                                 <artifactItem>
-                                    <groupId>com.seeburger.bis6</groupId>
+                                    <groupId>com.seeburger.as</groupId>
                                     <artifactId>hazelcast</artifactId>
                                     <version>${project.version}</version>
                                     <classifier>sources</classifier>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>com.seeburger.bis6</groupId>
+                                    <groupId>com.seeburger.as</groupId>
                                     <artifactId>hazelcast-client</artifactId>
                                     <version>${project.version}</version>
                                     <classifier>sources</classifier>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>com.seeburger.bis6</groupId>
+                                    <groupId>com.seeburger.as</groupId>
                                     <artifactId>hazelcast-cloud</artifactId>
                                     <version>${project.version}</version>
                                     <classifier>sources</classifier>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>com.seeburger.bis6</groupId>
+                                    <groupId>com.seeburger.as</groupId>
                                     <artifactId>hazelcast-hibernate3</artifactId>
                                     <version>${project.version}</version>
                                     <classifier>sources</classifier>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>com.seeburger.bis6</groupId>
+                                    <groupId>com.seeburger.as</groupId>
                                     <artifactId>hazelcast-spring</artifactId>
                                     <version>${project.version}</version>
                                     <classifier>sources</classifier>
                                 </artifactItem>
                                 <artifactItem>
-                                    <groupId>com.seeburger.bis6</groupId>
+                                    <groupId>com.seeburger.as</groupId>
                                     <artifactId>hazelcast-wm</artifactId>
                                     <version>${project.version}</version>
                                     <classifier>sources</classifier>

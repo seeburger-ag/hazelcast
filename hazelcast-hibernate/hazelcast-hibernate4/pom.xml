@@ -31,8 +31,8 @@
     <properties>
         <hibernate.core.version>4.1.0.Final</hibernate.core.version>
     </properties>
-    
-    
+
+
     <build>
         <plugins>
             <plugin>
@@ -48,7 +48,7 @@
                         </goals>
                         <configuration>
                             <instructions>
-                                <Fragment-Host>com.hazelcast</Fragment-Host>
+                                <Fragment-Host>com.seeburger.bis6.hazelcast</Fragment-Host>
                                 <Import-Package>!com.hazelcast.*, *</Import-Package>
                             </instructions>
                         </configuration>

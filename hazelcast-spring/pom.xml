@@ -107,7 +107,7 @@
                                     com.hazelcast.hibernate;resolution:=optional,
                                     *
                                 </Import-Package>
-                                <Fragment-Host>com.seeburger.bis6.hazelcast</Fragment-Host>
+                                <Fragment-Host>com.seeburger.as.hazelcast</Fragment-Host>
                                 <!--<Embed-Dependency>*;scope=compile|runtime</Embed-Dependency>-->
                             </instructions>
                         </configuration>

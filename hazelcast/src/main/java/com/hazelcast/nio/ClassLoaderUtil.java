@@ -40,6 +40,8 @@ public final class ClassLoaderUtil {
     public static final String HAZELCAST_BASE_PACKAGE = "com.hazelcast.";
     public static final String HAZELCAST_ARRAY = "[L" + HAZELCAST_BASE_PACKAGE;
 
+    private static final boolean disableClassCache = Boolean.getBoolean("com.hazelcast.nio.classloader.cache.disable");
+
     private static final Map<String, Class> PRIMITIVE_CLASSES;
     private static final int MAX_PRIM_CLASSNAME_LENGTH = 7; // boolean.class.getName().length();
 
@@ -131,14 +133,17 @@ public final class ClassLoaderUtil {
 
         final boolean finestEnabled = logger.isFinestEnabled();
 
-        final ClassCachePK classCachePK = new ClassCachePK(className, classLoader);
+        ClassCachePK classCachePK = null;
+        if (!disableClassCache) {
+            classCachePK = new ClassCachePK(className, classLoader);
 
-        Class<?> cachedClass = classCache.get(classCachePK);
-        if (cachedClass != null) {
-            if (finestEnabled) {
-                logger.finest("Found class in cache " + className + ". PK=" + classCachePK);
+            Class<?> cachedClass = classCache.get(classCachePK);
+            if (cachedClass != null) {
+                if (finestEnabled) {
+                    logger.finest("Found class in cache " + className + ". PK=" + classCachePK);
+                }
+                return cachedClass;
             }
-            return cachedClass;
         }
 
         // cache miss
@@ -152,15 +157,17 @@ public final class ClassLoaderUtil {
             loadedClass = classLoader.loadClass(className);
         }
 
-        Class<?> prevousClass = classCache.put(classCachePK, loadedClass);
-        if (finestEnabled) {
-            if (prevousClass != null) {
-                // may also occur if class is added first time due to concurrent calls. But better than synchronizing.
-                logger.finest("Replaced cached class " + className + " with new one. Size=" + classCache.size() + ". PK=" + classCachePK);
-            }
-            else
-            {
-                logger.finest("Added class to cache " + className + ". Size=" + classCache.size() + ". PK=" + classCachePK);
+        if (!disableClassCache) {
+            Class<?> prevousClass = classCache.put(classCachePK, loadedClass);
+            if (finestEnabled) {
+                if (prevousClass != null) {
+                    // may also occur if class is added first time due to concurrent calls. But better than synchronizing.
+                    logger.finest("Replaced cached class " + className + " with new one. Size=" + classCache.size() + ". PK=" + classCachePK);
+                }
+                else
+                {
+                    logger.finest("Added class to cache " + className + ". Size=" + classCache.size() + ". PK=" + classCachePK);
+                }
             }
         }
 

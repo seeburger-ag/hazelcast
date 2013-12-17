@@ -14,16 +14,13 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                      http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0                       http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.seeburger.as</groupId>
     <artifactId>hazelcast-root</artifactId>
     <packaging>pom</packaging>
-    <version>3.1.3.SEE1-SNAPSHOT</version>
+    <version>3.1.3.SEE1</version>
     <name>Hazelcast Root</name>
     <description>Hazelcast In-Memory DataGrid</description>
     <url>http://www.hazelcast.com/</url>
@@ -78,7 +75,8 @@
         <connection>scm:git:git://github.com/seeburger-ag/hazelcast.git</connection>
         <developerConnection>scm:git:git@github.com:seeburger-ag/hazelcast.git</developerConnection>
         <url>https://github.com/seeburger-ag/hazelcast/</url>
-    </scm>
+      <tag>hazelcast-root-3.1.3.SEE1</tag>
+  </scm>
     <developers>
         <developer>
             <id>oztalip</id>

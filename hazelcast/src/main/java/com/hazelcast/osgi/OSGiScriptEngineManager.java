@@ -202,7 +202,7 @@ public class OSGiScriptEngineManager extends ScriptEngineManager {
                 }
                 catch (ClassNotFoundException cnfe) {
                     // may fail if script implementation is not in environment
-                    logger.warning("Found ScriptEngineFactory candidate for " + factoryName + ", but cannot load class! -> " + cnfe);
+                    logger.info("Found ScriptEngineFactory candidate for " + factoryName + ", but cannot load class! -> " + cnfe);
                     if (logger.isFinestEnabled()) {
                         logger.finest(cnfe);
                     }

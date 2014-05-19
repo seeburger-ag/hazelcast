@@ -83,9 +83,9 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git:git://github.com/hazelcast/hazelcast.git</connection>
-        <developerConnection>scm:git:git@github.com:hazelcast/hazelcast.git</developerConnection>
-        <url>https://github.com/hazelcast/hazelcast/</url>
+        <connection>scm:git:git://github.com/seeburger-ag/hazelcast.git</connection>
+        <developerConnection>scm:git:git@github.com:seeburger-ag/hazelcast.git</developerConnection>
+        <url>https://github.com/seeburger-ag/hazelcast/</url>
     </scm>
     <developers>
         <developer>
@@ -664,13 +664,13 @@
 
     <distributionManagement>
         <repository>
-            <id>release-repository</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+            <id>release</id>
+            <url>https://repo.seeburger.de/archiva/repository/release/</url>
         </repository>
         <snapshotRepository>
-            <id>snapshot-repository</id>
+            <id>snapshot</id>
             <name>Maven2 Snapshot Repository</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <url>https://repo.seeburger.de/archiva/repository/snapshot/</url>
             <uniqueVersion>false</uniqueVersion>
         </snapshotRepository>
     </distributionManagement>

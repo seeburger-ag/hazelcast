@@ -247,7 +247,7 @@ public class OSGiScriptEngineManager extends ScriptEngineManager {
             return Class.forName(factoryName).getClassLoader();
         } catch (ClassNotFoundException cnfe) {
             // may fail if script implementation is not in environment
-            logger.warning("Found ScriptEngineFactory candidate for "
+            logger.info("Found ScriptEngineFactory candidate for "
                     + factoryName + ", but cannot load class! -> " + cnfe);
             if (logger.isFinestEnabled()) {
                 logger.finest(cnfe);
@@ -264,7 +264,7 @@ public class OSGiScriptEngineManager extends ScriptEngineManager {
             managers.put(manager, factoryLoader);
         } catch (Exception e) {
             // may fail if script implementation is not in environment
-            logger.warning("Found ScriptEngineFactory candidate for " + factoryName
+            logger.info("Found ScriptEngineFactory candidate for " + factoryName
                     + ", but could not load ScripEngineManager! -> " + e);
             if (logger.isFinestEnabled()) {
                 logger.finest(e);

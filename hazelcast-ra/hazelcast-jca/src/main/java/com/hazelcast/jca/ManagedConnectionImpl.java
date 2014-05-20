@@ -40,7 +40,7 @@ public class ManagedConnectionImpl extends JcaBase implements ManagedConnection 
 
 	private final ManagedConnectionFactoryImpl factory;
 	private final ConnectionRequestInfo cxRequestInfo;
-	
+
 	private final XAResourceWrapper xaResource;
 
     private HazelcastTransactionImpl tx;
@@ -51,19 +51,19 @@ public class ManagedConnectionImpl extends JcaBase implements ManagedConnection 
 	public ManagedConnectionImpl(ConnectionRequestInfo cxRequestInfo,ManagedConnectionFactoryImpl factory) {
 		this.setLogWriter(factory.getLogWriter());
 		log(Level.FINEST, "ManagedConnectionImpl");
-		
+
 		this.factory = factory;
 		this.cxRequestInfo = cxRequestInfo;
 
 		this.id = idGen.incrementAndGet();
 		this.tx = new HazelcastTransactionImpl(factory, this);
 		this.xaResource = new XAResourceWrapper(this);
-		
+
 		factory.logHzConnectionEvent(this, HzConnectionEvent.CREATE);
 	}
 
 	public void addConnectionEventListener(ConnectionEventListener listener) {
-		log(Level.FINEST, "addConnectionEventListener: " + listener);
+		log(Level.FINEST, "addConnectionEventListener");
 		connectionEventListeners.add(listener);
 	}
 

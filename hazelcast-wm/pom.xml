@@ -26,9 +26,9 @@
 
 
     <parent>
-        <groupId>com.hazelcast</groupId>
+        <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-root</artifactId>
-        <version>3.2.2</version>
+        <version>3.2.2.SEE1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -114,7 +114,7 @@
                                     org.slf4j;resolution:=optional,
                                     *
                                 </Import-Package>
-                                <Fragment-Host>com.hazelcast</Fragment-Host>
+                                <Fragment-Host>com.seeburger.as.hazelcast</Fragment-Host>
                                 <!--<Embed-Dependency>*;scope=compile|runtime</Embed-Dependency>-->
                             </instructions>
                         </configuration>
@@ -172,12 +172,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.hazelcast</groupId>
+            <groupId>com.seeburger.as</groupId>
             <artifactId>hazelcast</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.hazelcast</groupId>
+            <groupId>com.seeburger.as</groupId>
             <artifactId>hazelcast-client</artifactId>
             <version>${project.parent.version}</version>
             <scope>provided</scope>
@@ -196,7 +196,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.hazelcast</groupId>
+            <groupId>com.seeburger.as</groupId>
             <artifactId>hazelcast</artifactId>
             <scope>test</scope>
             <version>${project.parent.version}</version>

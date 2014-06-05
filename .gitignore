@@ -1,7 +1,5 @@
 .clover/
 target/
-.project
-.classpath
 .settings/
 .idea/
 .patch

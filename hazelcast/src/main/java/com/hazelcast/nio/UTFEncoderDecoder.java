@@ -129,6 +129,14 @@ public final class UTFEncoderDecoder {
         boolean isNull = in.readBoolean();
         if (isNull) return null;
         int length = in.readInt();
+
+        // TODO workaround for https://github.com/hazelcast/hazelcast/issues/2705
+        if (length > 10 * 1024 * 1024)
+        {
+            // error out with content larger than 10MB
+            throw new IOException("#2705 Content unexpectedly large. Length=" + length);
+        }
+
         final char[] data = new char[length];
         if (length > 0) {
             int chunkSize = length / STRING_CHUNK_SIZE + 1;

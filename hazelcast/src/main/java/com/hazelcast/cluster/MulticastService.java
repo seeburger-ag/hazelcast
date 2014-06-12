@@ -159,7 +159,7 @@ public class MulticastService implements Runnable {
                 }
             } catch (Exception e) {
                 if (e instanceof EOFException || e instanceof HazelcastSerializationException) {
-                    logger.info("Received data format is invalid." +
+                    logger.finest("Received data format is invalid." +
                             " (An old version of Hazelcast may be running here.), Sender -> "
                                     + datagramPacketReceive.getAddress() + ", Exception -> " + e);
                 } else {

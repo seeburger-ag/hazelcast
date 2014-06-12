@@ -147,7 +147,7 @@ public class MulticastService implements Runnable {
 
                 final byte packetVersion = input.readByte();
                 if (packetVersion != Packet.VERSION) {
-                    logger.warning("Received a JoinRequest with a different packet version! This -> "
+                    logger.finest("Received a JoinRequest with a different packet version! This -> "
                             + Packet.VERSION + ", Incoming -> " + packetVersion
                             + ", Sender -> " + datagramPacketReceive.getAddress());
                     return null;

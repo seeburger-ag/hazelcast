@@ -23,7 +23,7 @@
     <parent>
         <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-ra</artifactId>
-        <version>3.2.3.SEE2</version>
+        <version>3.2.3.SEE3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 

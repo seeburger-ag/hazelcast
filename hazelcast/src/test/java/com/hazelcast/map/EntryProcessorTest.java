@@ -1144,6 +1144,15 @@ public class EntryProcessorTest extends HazelcastTestSupport {
             this.expected = expected;
         }
 
+        int expected;
+
+        public EntryCreate(){
+        }
+
+        public EntryCreate(int expected){
+            this.expected = expected;
+        }
+
         @Override
         public Object process(final Map.Entry<String, Integer> entry) {
             entry.setValue(expected);

@@ -21,7 +21,7 @@
     <parent>
         <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-root</artifactId>
-        <version>3.2.3.SEE1-SNAPSHOT</version>
+        <version>3.2.4.SEE1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -52,11 +52,11 @@
 			      <arguments>
 			         <argument>${project.version}</argument>
 			      </arguments>
-			      <workingDirectory>${env.PROJECT_HOME}</workingDirectory>            
+			      <workingDirectory>${env.PROJECT_HOME}</workingDirectory>
 			    </configuration>
 			  </execution>
 			  </executions>
-			
+
 			</plugin>
 		</plugins>
     </build>

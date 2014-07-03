@@ -314,7 +314,7 @@ public class EntryProcessorTest extends HazelcastTestSupport {
         TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
         final HazelcastInstance instance1 = factory.newHazelcastInstance();
         final HazelcastInstance instance2 = factory.newHazelcastInstance();
-
+        
         final IMap<Object, Object> map = instance2.getMap("map");
         Set<Object> keys = new HashSet<Object>();
 

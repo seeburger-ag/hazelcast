@@ -18,14 +18,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <name>hazelcast-cloud</name>
-    <artifactId>hazelcast-cloud</artifactId>
+    <name>hazelcast-build-utils</name>
+    <artifactId>hazelcast-build-utils</artifactId>
     <packaging>jar</packaging>
 
     <parent>
-        <groupId>com.seeburger.as</groupId>
+        <groupId>com.hazelcast</groupId>
         <artifactId>hazelcast-root</artifactId>
-        <version>3.2.4.SEE1-SNAPSHOT</version>
+        <version>3.2.4-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -48,28 +48,6 @@
             </plugin>
 
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>1.7</version>
-                <configuration>
-                    <signature>
-                        <groupId>org.codehaus.mojo.signature</groupId>
-                        <artifactId>java16</artifactId>
-                        <version>1.0</version>
-                    </signature>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>source-java6-check</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>${maven.source.plugin.version}</version>
@@ -84,38 +62,6 @@
             </plugin>
 
             <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>${maven.bundle.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>bundle-manifest</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>manifest</goal>
-                        </goals>
-                        <configuration>
-                            <instructions>
-                                <Export-Package>
-                                    com.hazelcast.*
-                                </Export-Package>
-                                <Import-Package>
-                                    !org.junit,
-                                    !com.hazelcast.*,
-                                    org.apache.log4j;resolution:=optional,
-                                    org.apache.log4j.*;resolution:=optional,
-                                    org.slf4j;resolution:=optional,
-                                    *
-                                </Import-Package>
-                                <Fragment-Host>com.seeburger.as.hazelcast</Fragment-Host>
-                                <!--<Embed-Dependency>*;scope=compile|runtime</Embed-Dependency>-->
-                            </instructions>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>${maven.jar.plugin.version}</version>
@@ -124,11 +70,9 @@
                         <index>true</index>
                         <compress>true</compress>
                         <manifest>
-                            <addClasspath>false</addClasspath>
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                             <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                         </manifest>
-                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
                     </archive>
                 </configuration>
             </plugin>
@@ -137,16 +81,17 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.seeburger.as</groupId>
-            <artifactId>hazelcast</artifactId>
-            <version>${project.parent.version}</version>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>${maven.shade.plugin.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.seeburger.as</groupId>
-            <artifactId>hazelcast</artifactId>
-            <scope>test</scope>
-            <version>${project.parent.version}</version>
-            <classifier>tests</classifier>
+            <groupId>net.sourceforge.findbugs</groupId>
+            <artifactId>annotations</artifactId>
+            <version>1.3.2</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
+
 </project>

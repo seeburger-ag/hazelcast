@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * @author mdogan 4/12/12
+ * Utility class to deal with classloaders.
  */
 public final class ClassLoaderUtil {
 
@@ -39,6 +39,8 @@ public final class ClassLoaderUtil {
     private static final int MAX_PRIM_CLASSNAME_LENGTH = 7; // boolean.class.getName().length();
 
     private static final ClassCache CLASS_CACHE = new ClassCache();
+
+    private static final ConstructorCache CONSTRUCTOR_CACHE = new ConstructorCache();
 
     static {
         final Map<String, Class> primitives = new HashMap<String, Class>(10, 1.0f);
@@ -59,8 +61,13 @@ public final class ClassLoaderUtil {
 
     public static <T> T newInstance(ClassLoader classLoader, final String className)
             throws Exception {
+        classLoader = classLoader == null ? ClassLoaderUtil.class.getClassLoader() : classLoader;
+        Constructor<?> constructor = CONSTRUCTOR_CACHE.get(classLoader, className);
+        if (constructor != null) {
+            return (T) constructor.newInstance();
+        }
         Class<?> klass = loadClass(classLoader, className);
-        return (T)newInstance(klass, classLoader, className);
+        return (T) newInstance(klass, classLoader, className);
     }
 
     public static <T> T newInstance(Class<T> klass, ClassLoader classLoader, String className)
@@ -69,6 +76,7 @@ public final class ClassLoaderUtil {
         if (!constructor.isAccessible()) {
             constructor.setAccessible(true);
         }
+        CONSTRUCTOR_CACHE.put(classLoader, className, constructor);
         return constructor.newInstance();
     }
 
@@ -168,6 +176,39 @@ public final class ClassLoaderUtil {
 
         protected <T> Class<?> get(ClassLoader classLoader, String className) {
             ConcurrentMap<String, Class<?>> innerCache = cache.get(classLoader);
+            if (innerCache == null) {
+                return null;
+            }
+            return innerCache.get(className);
+        }
+    }
+
+    private static final class ConstructorCache {
+        private final ConcurrentMap<ClassLoader, ConcurrentMap<String, Constructor<?>>> cache;
+
+        protected ConstructorCache() {
+            // Guess 16 classloaders to not waste to much memory (16 is default concurrency level)
+            cache = new ConcurrentReferenceHashMap<ClassLoader, ConcurrentMap<String, Constructor<?>>>(16,
+                            ReferenceType.SOFT, ReferenceType.SOFT);
+        }
+
+        private <T> Constructor<?> put(ClassLoader classLoader, String className, Constructor<T> constructor) {
+            ClassLoader cl = classLoader == null ? ClassLoaderUtil.class.getClassLoader() : classLoader;
+            ConcurrentMap<String, Constructor<?>> innerCache = cache.get(cl);
+            if (innerCache == null) {
+                // Let's guess a start of 100 constructors per classloader
+                innerCache = new ConcurrentHashMap<String, Constructor<?>>(100);
+                ConcurrentMap<String, Constructor<?>> old = cache.putIfAbsent(cl, innerCache);
+                if (old != null) {
+                    innerCache = old;
+                }
+            }
+            innerCache.put(className, constructor);
+            return constructor;
+        }
+
+        public <T> Constructor<?> get(ClassLoader classLoader, String className) {
+            ConcurrentMap<String, Constructor<?>> innerCache = cache.get(classLoader);
             if (innerCache == null) {
                 return null;
             }

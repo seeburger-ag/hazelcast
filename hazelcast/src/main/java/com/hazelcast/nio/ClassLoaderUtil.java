@@ -175,6 +175,7 @@ public final class ClassLoaderUtil {
         }
 
         protected <T> Class<?> get(ClassLoader classLoader, String className) {
+            ValidationUtil.isNotNull(className, "className");
             ConcurrentMap<String, Class<?>> innerCache = cache.get(classLoader);
             if (innerCache == null) {
                 return null;

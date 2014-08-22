@@ -1,13 +1,5 @@
 package com.hazelcast.map;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 import com.hazelcast.config.ExecutorConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MaxSizeConfig;
@@ -21,6 +13,14 @@ import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.OperationAccessor;
 import com.hazelcast.spi.impl.ResponseHandlerFactory;
 import com.hazelcast.util.EmptyArrays;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class MapEvictionManager {
 
@@ -55,8 +55,8 @@ public class MapEvictionManager {
         public void run() {
             final MapService mapService = MapEvictionManager.this.mapService;
             final Map<String, MapContainer> mapContainers = mapService.getMapContainers();
-            for (MapContainer mapContainer : mapContainers.values()){
-                if (evictionPolicyConfigured(mapContainer) && evictable(mapContainer)){
+            for (MapContainer mapContainer : mapContainers.values()) {
+                if (evictionPolicyConfigured(mapContainer) && evictable(mapContainer)) {
                     evictMap(mapContainer);
                 }
             }
@@ -64,14 +64,13 @@ public class MapEvictionManager {
 
         private void evictMap(MapContainer mapContainer) {
             final NodeEngine nodeEngine = mapService.getNodeEngine();
-            final MapConfig mapConfig = mapContainer.getMapConfig();
             for (int i = 0; i < ExecutorConfig.DEFAULT_POOL_SIZE; i++) {
-                final EvictRunner runner = new EvictRunner(mapConfig, i);
+                final EvictRunner runner = new EvictRunner(mapContainer, i);
                 nodeEngine.getExecutionService().execute(EXECUTOR_NAME, runner);
             }
         }
 
-        private boolean evictionPolicyConfigured(MapContainer mapContainer){
+        private boolean evictionPolicyConfigured(MapContainer mapContainer) {
             final MapConfig.EvictionPolicy evictionPolicy = mapContainer.getMapConfig().getEvictionPolicy();
             final MaxSizeConfig maxSizeConfig = mapContainer.getMapConfig().getMaxSizeConfig();
             return !MapConfig.EvictionPolicy.NONE.equals(evictionPolicy) && maxSizeConfig.getSize() > 0;
@@ -114,9 +113,9 @@ public class MapEvictionManager {
                 if (nodeEngine.getThisAddress().equals(owner)) {
                     final PartitionContainer container = mapService.getPartitionContainer(i);
                     if (container == null) {
-                        return false;
+                        continue;
                     }
-                    nodeTotalSize += container.getRecordStore(mapName).size();
+                    nodeTotalSize += getRecordStoreSize(mapName, container);
                     if (nodeTotalSize >= maxSize) {
                         return true;
                     }
@@ -124,6 +123,7 @@ public class MapEvictionManager {
             }
             return false;
         }
+
         /**
          * used when deciding evictable or not.
          */
@@ -145,9 +145,9 @@ public class MapEvictionManager {
                 if (nodeEngine.getThisAddress().equals(owner)) {
                     final PartitionContainer container = mapService.getPartitionContainer(i);
                     if (container == null) {
-                        return false;
+                        continue;
                     }
-                    final int size = container.getRecordStore(mapName).size();
+                    final int size = getRecordStoreSize(mapName, container);
                     if (size >= maxSize) {
                         return true;
                     }
@@ -155,6 +155,15 @@ public class MapEvictionManager {
             }
             return false;
         }
+
+        private int getRecordStoreSize(String mapName, PartitionContainer partitionContainer) {
+            final RecordStore existingRecordStore = partitionContainer.getExistingRecordStore(mapName);
+            if (existingRecordStore == null) {
+                return 0;
+            }
+            return existingRecordStore.size();
+        }
+
 
         private boolean isEvictableHeapSize(final MapContainer mapContainer) {
             final long usedHeapSize = getUsedHeapSize(mapContainer);
@@ -190,27 +199,39 @@ public class MapEvictionManager {
                     if (container == null) {
                         return -1;
                     }
-                    heapCost += container.getRecordStore(mapName).getHeapCost();
+                    heapCost += getRecordStoreHeapCost(mapName, container);
                 }
             }
             heapCost += mapContainer.getNearCacheSizeEstimator().getSize();
             return heapCost;
         }
+
+
+        private long getRecordStoreHeapCost(String mapName, PartitionContainer partitionContainer) {
+            final RecordStore existingRecordStore = partitionContainer.getExistingRecordStore(mapName);
+            if (existingRecordStore == null) {
+                return 0L;
+            }
+            return existingRecordStore.getHeapCost();
+        }
+
     }
 
 
     private class EvictRunner implements Runnable {
         private final int mod;
         private final MapConfig mapConfig;
+        private final String mapName;
 
-        private EvictRunner(MapConfig mapConfig, int mode) {
+        private EvictRunner(MapContainer mapContainer, int mode) {
             this.mod = mode;
-            this.mapConfig = mapConfig;
+            this.mapName = mapContainer.getName();
+            this.mapConfig = mapContainer.getMapConfig();
         }
 
         public void run() {
             final MapConfig mapConfig = this.mapConfig;
-            final String mapName = mapConfig.getName();
+            final String mapName = this.mapName;
             final MapService mapService = MapEvictionManager.this.mapService;
             final NodeEngine nodeEngine = mapService.getNodeEngine();
             Set<Data> keysGatheredForNearCacheEviction = Collections.emptySet();
@@ -354,7 +375,7 @@ public class MapEvictionManager {
                 break;
             case USED_HEAP_PERCENTAGE:
             case USED_HEAP_SIZE:
-                evictableSize = currentPartitionSize * evictionPercentage / 100;
+                evictableSize = Math.max(currentPartitionSize * evictionPercentage / 100, 1);
                 break;
             default:
                 throw new IllegalArgumentException("Max size policy is not defined [" + maxSizePolicy + "]");

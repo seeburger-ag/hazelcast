@@ -148,20 +148,21 @@ Hazelcast provides paging for defined predicates. For this purpose, `PagingPredi
 
 Below is a sample code where the `greaterEqual` predicate is used to get values from "students" map. This predicate puts a filter such that the objects with value of "age" is greater than or equal to 18 will be retrieved. Then, a `pagingPredicate` is constructed in which the page size is 5. So, there will be 5 objects in each page. 
 
-The first time the values are called will constitute the first page. You can get the subsequent pages by using the `nextPage()` method of `PagingPredicate`.
+The first time the values are called will constitute the first page. You can get the subsequent pages by using the `nextPage()` method of `PagingPredicate` and querying the map again with updated `PagingPredicate`..
 
-
-```
+```java
 final IMap<Integer, Student> map = instance.getMap("students");
-       final Predicate greaterEqual = Predicates.greaterEqual("age", 18);
-       final PagingPredicate pagingPredicate = new PagingPredicate(greaterEqual, 5);
-       Collection<Student> values = map.values(pagingPredicate); //First Page
-       ...
+final Predicate greaterEqual = Predicates.greaterEqual("age", 18);
+final PagingPredicate pagingPredicate = new PagingPredicate(greaterEqual, 5);
+Collection<Student> values = map.values(pagingPredicate); //First Page
+...
        
-       pagingPredicate.nextPage();
-       values = map.values(pagingPredicate); //Second Page
-       ...
+pagingPredicate.nextPage();
+values = map.values(pagingPredicate); //Second Page
+...
 ```
+
+If a comparator is not specified for `PagingPredicate` and when you want to get collection of keys or values page by page, this collection must be an instance of `Comparable` (i.e. it must implement `java.lang.Comparable`). Otherwise, `java.lang.IllegalArgument` exception is thrown.
 
 Paging Predicate is not supported in Transactional Context.
 
@@ -186,34 +187,36 @@ imap.addIndex("active", false);    // not ordered, because boolean field cannot 
 Also, you can define `IMap` indexes in configuration, a sample of which is shown below.
 
 
-	```xml
-	<map name="default">
-	    ...
-	    <indexes>
-	        <index ordered="false">name</index>
-	        <index ordered="true">age</index>
-	    </indexes>
-	</map>```
+```xml
+<map name="default">
+    ...
+    <indexes>
+        <index ordered="false">name</index>
+        <index ordered="true">age</index>
+    </indexes>
+</map>
+```
 
 
 This sample in programmatic configuration looks like below.
 
 
 
-	```java
-	mapConfig.addMapIndexConfig(new MapIndexConfig("name", false));
-	mapConfig.addMapIndexConfig(new MapIndexConfig("age", true));```
+```java
+mapConfig.addMapIndexConfig(new MapIndexConfig("name", false));
+mapConfig.addMapIndexConfig(new MapIndexConfig("age", true));
+```
 
 
 And, the following is the Spring declarative configuration for the same sample.
  
 
 
-	```xml
-	<hz:map name="default">
-	    <hz:indexes>
-	        <hz:index attribute="name"/>
-	        <hz:index attribute="age" ordered="true"/>
-	    </hz:indexes>
-	</hz:map>
+```xml
+<hz:map name="default">
+    <hz:indexes>
+        <hz:index attribute="name"/>
+        <hz:index attribute="age" ordered="true"/>
+    </hz:indexes>
+</hz:map>
 ```

@@ -59,19 +59,17 @@ public final class ClassLoaderUtil {
     private ClassLoaderUtil() {
     }
 
-    public static <T> T newInstance(ClassLoader classLoader, final String className)
-            throws Exception {
+    public static <T> T newInstance(ClassLoader classLoader, final String className) throws Exception {
         classLoader = classLoader == null ? ClassLoaderUtil.class.getClassLoader() : classLoader;
         Constructor<?> constructor = CONSTRUCTOR_CACHE.get(classLoader, className);
         if (constructor != null) {
             return (T) constructor.newInstance();
         }
-        Class<?> klass = loadClass(classLoader, className);
-        return (T) newInstance(klass, classLoader, className);
+        Class<T> klass = (Class<T>) loadClass(classLoader, className);
+        return newInstance(klass, classLoader, className);
     }
 
-    public static <T> T newInstance(Class<T> klass, ClassLoader classLoader, String className)
-            throws Exception {
+    public static <T> T newInstance(Class<T> klass, ClassLoader classLoader, String className) throws Exception {
         final Constructor<T> constructor = klass.getDeclaredConstructor();
         if (!constructor.isAccessible()) {
             constructor.setAccessible(true);
@@ -146,8 +144,9 @@ public final class ClassLoaderUtil {
     }
 
     public static boolean isInternalType(Class type) {
-        return type.getClassLoader() == ClassLoaderUtil.class.getClassLoader() && type.getName()
-                .startsWith(HAZELCAST_BASE_PACKAGE);
+        String name = type.getName();
+        ClassLoader classLoader = ClassLoaderUtil.class.getClassLoader();
+        return type.getClassLoader() == classLoader && name.startsWith(HAZELCAST_BASE_PACKAGE);
     }
 
     private static final class ClassCache {
@@ -193,7 +192,7 @@ public final class ClassLoaderUtil {
                             ReferenceType.SOFT, ReferenceType.SOFT);
         }
 
-        private <T> Constructor<?> put(ClassLoader classLoader, String className, Constructor<T> constructor) {
+        protected <T> Constructor<?> put(ClassLoader classLoader, String className, Constructor<T> constructor) {
             ClassLoader cl = classLoader == null ? ClassLoaderUtil.class.getClassLoader() : classLoader;
             ConcurrentMap<String, Constructor<?>> innerCache = cache.get(cl);
             if (innerCache == null) {
@@ -209,6 +208,7 @@ public final class ClassLoaderUtil {
         }
 
         public <T> Constructor<?> get(ClassLoader classLoader, String className) {
+            ValidationUtil.isNotNull(className, "className");
             ConcurrentMap<String, Constructor<?>> innerCache = cache.get(classLoader);
             if (innerCache == null) {
                 return null;

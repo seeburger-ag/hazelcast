@@ -14,7 +14,10 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                      http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <name>hazelcast-jca</name>
     <artifactId>hazelcast-jca</artifactId>
@@ -23,7 +26,7 @@
     <parent>
         <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-ra</artifactId>
-        <version>3.2.6.SEE2-SNAPSHOT</version>
+        <version>3.3.1.SEE1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -48,7 +51,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>1.7</version>
+                <version>${animal.sniffer.plugin.version}</version>
                 <configuration>
                     <signature>
                         <groupId>org.codehaus.mojo.signature</groupId>
@@ -118,7 +121,6 @@
             <scope>test</scope>
         </dependency>
 
-
         <dependency>
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-j2ee-connector_1.5_spec</artifactId>
@@ -158,13 +160,24 @@
             <artifactId>jboss-javaee-6.0</artifactId>
             <version>1.0.0.Final</version>
             <type>pom</type>
-            <scope>provided</scope>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-arquillian-container-managed</artifactId>
             <version>7.1.1.Final</version>
             <scope>test</scope>
+            <!-- jboss jmx dependencies include jdk tools.jar which is breaking animal sniffer plugin check goal -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.as</groupId>
+                    <artifactId>jboss-as-arquillian-protocol-jmx</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jboss.as</groupId>
+                    <artifactId>jboss-as-jmx</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jboss.arquillian.protocol</groupId>
@@ -174,9 +187,9 @@
         <!--arquillian-jbossas-managed-->
 
         <!--<dependency>-->
-            <!--<groupId>org.jboss.arquillian.extension</groupId>-->
-            <!--<artifactId>arquillian-transaction-api</artifactId>-->
-            <!--<scope>test</scope>-->
+        <!--<groupId>org.jboss.arquillian.extension</groupId>-->
+        <!--<artifactId>arquillian-transaction-api</artifactId>-->
+        <!--<scope>test</scope>-->
         <!--</dependency>-->
 
     </dependencies>

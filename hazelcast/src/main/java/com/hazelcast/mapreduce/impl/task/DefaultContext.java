@@ -19,14 +19,16 @@ package com.hazelcast.mapreduce.impl.task;
 import com.hazelcast.mapreduce.Combiner;
 import com.hazelcast.mapreduce.CombinerFactory;
 import com.hazelcast.mapreduce.Context;
+import com.hazelcast.mapreduce.impl.CombinerResultList;
 import com.hazelcast.mapreduce.impl.HashMapAdapter;
 import com.hazelcast.mapreduce.impl.MapReduceUtil;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * This is the internal default implementation of a map reduce context mappers emit values to. It controls the emitted
@@ -41,11 +43,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DefaultContext<KeyIn, ValueIn>
         implements Context<KeyIn, ValueIn> {
 
-    private final Map<KeyIn, Combiner<KeyIn, ValueIn, ?>> combiners = new HashMap<KeyIn, Combiner<KeyIn, ValueIn, ?>>();
+    private static final AtomicIntegerFieldUpdater<DefaultContext> COLLECTED_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(DefaultContext.class, "collected");
+
+    private final ConcurrentMap<KeyIn, Combiner<ValueIn, ?>> combiners = new ConcurrentHashMap<KeyIn, Combiner<ValueIn, ?>>();
     private final CombinerFactory<KeyIn, ValueIn, ?> combinerFactory;
     private final MapCombineTask mapCombineTask;
 
-    private final AtomicInteger collected = new AtomicInteger(0);
+    // This field is only accessed through the updater
+    private volatile int collected;
 
     private volatile int partitionId;
 
@@ -60,42 +66,49 @@ public class DefaultContext<KeyIn, ValueIn>
 
     @Override
     public void emit(KeyIn key, ValueIn value) {
-        Combiner<KeyIn, ValueIn, ?> combiner = getOrCreateCombiner(key);
-        combiner.combine(key, value);
-        collected.incrementAndGet();
+        Combiner<ValueIn, ?> combiner = getOrCreateCombiner(key);
+        combiner.combine(value);
+        COLLECTED_UPDATER.incrementAndGet(this);
         mapCombineTask.onEmit(this, partitionId);
     }
 
     public <Chunk> Map<KeyIn, Chunk> requestChunk() {
         int mapSize = MapReduceUtil.mapSize(combiners.size());
         Map<KeyIn, Chunk> chunkMap = new HashMapAdapter<KeyIn, Chunk>(mapSize);
-        for (Map.Entry<KeyIn, Combiner<KeyIn, ValueIn, ?>> entry : combiners.entrySet()) {
-            Chunk chunk = (Chunk) entry.getValue().finalizeChunk();
+        for (Map.Entry<KeyIn, Combiner<ValueIn, ?>> entry : combiners.entrySet()) {
+            Combiner<ValueIn, ?> combiner = entry.getValue();
+            Chunk chunk = (Chunk) combiner.finalizeChunk();
+            combiner.reset();
+
             if (chunk != null) {
                 chunkMap.put(entry.getKey(), chunk);
             }
         }
-        collected.set(0);
+        COLLECTED_UPDATER.set(this, 0);
         return chunkMap;
     }
 
     public int getCollected() {
-        return collected.get();
+        return collected;
     }
 
     public <Chunk> Map<KeyIn, Chunk> finish() {
-        for (Combiner<KeyIn, ValueIn, ?> combiner : combiners.values()) {
+        for (Combiner<ValueIn, ?> combiner : combiners.values()) {
             combiner.finalizeCombine();
         }
         return requestChunk();
     }
 
-    private Combiner<KeyIn, ValueIn, ?> getOrCreateCombiner(KeyIn key) {
-        Combiner<KeyIn, ValueIn, ?> combiner = combiners.get(key);
+    public Combiner<ValueIn, ?> getOrCreateCombiner(KeyIn key) {
+        Combiner<ValueIn, ?> combiner = combiners.get(key);
         if (combiner == null) {
             combiner = combinerFactory.newCombiner(key);
-            combiners.put(key, combiner);
             combiner.beginCombine();
+
+            Combiner<ValueIn, ?> temp = combiners.putIfAbsent(key, combiner);
+            if (temp != null) {
+                combiner = temp;
+            }
         }
         return combiner;
     }
@@ -112,21 +125,24 @@ public class DefaultContext<KeyIn, ValueIn>
             implements CombinerFactory<KeyIn, ValueIn, List<ValueIn>> {
 
         @Override
-        public Combiner<KeyIn, ValueIn, List<ValueIn>> newCombiner(KeyIn key) {
-            return new Combiner<KeyIn, ValueIn, List<ValueIn>>() {
+        public Combiner<ValueIn, List<ValueIn>> newCombiner(KeyIn key) {
+            return new Combiner<ValueIn, List<ValueIn>>() {
 
                 private final List<ValueIn> values = new ArrayList<ValueIn>();
 
                 @Override
-                public void combine(KeyIn key, ValueIn value) {
+                public void combine(ValueIn value) {
                     values.add(value);
                 }
 
                 @Override
                 public List<ValueIn> finalizeChunk() {
-                    List<ValueIn> values = new ArrayList<ValueIn>(this.values);
+                    return new CombinerResultList<ValueIn>(this.values);
+                }
+
+                @Override
+                public void reset() {
                     this.values.clear();
-                    return values;
                 }
             };
         }

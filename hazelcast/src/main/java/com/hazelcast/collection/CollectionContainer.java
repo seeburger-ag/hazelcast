@@ -33,19 +33,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * @ali 8/30/13
- */
 public abstract class CollectionContainer implements DataSerializable {
 
     protected String name;
     protected NodeEngine nodeEngine;
     protected ILogger logger;
 
-    protected Map<Long, CollectionItem> itemMap = null;
+    protected Map<Long, CollectionItem> itemMap;
     protected final Map<Long, TxCollectionItem> txMap = new HashMap<Long, TxCollectionItem>();
 
-    private long idGenerator = 0;
+    private long idGenerator;
 
     protected CollectionContainer() {
     }
@@ -247,34 +244,33 @@ public abstract class CollectionContainer implements DataSerializable {
     }
 
     public void rollbackRemove(long itemId) {
-        final CollectionItem item = txMap.remove(itemId);
-        if (item == null) {
+        final TxCollectionItem txItem = txMap.remove(itemId);
+        if (txItem == null) {
             logger.warning("rollbackRemove No txn item for itemId: " + itemId);
         }
+        CollectionItem item = new CollectionItem(itemId, txItem.value);
         getCollection().add(item);
     }
 
     public void rollbackRemoveBackup(long itemId) {
-        final CollectionItem item = txMap.remove(itemId);
+        final TxCollectionItem item = txMap.remove(itemId);
         if (item == null) {
             logger.warning("rollbackRemoveBackup No txn item for itemId: " + itemId);
         }
     }
 
     public void commitAdd(long itemId, Data value) {
-        final CollectionItem item = txMap.remove(itemId);
-        if (item == null) {
+        final TxCollectionItem txItem = txMap.remove(itemId);
+        if (txItem == null) {
             throw new TransactionException("No reserve :" + itemId);
         }
-        item.setValue(value);
+        CollectionItem item = new CollectionItem(itemId, value);
         getCollection().add(item);
     }
 
     public void commitAddBackup(long itemId, Data value) {
-        CollectionItem item = txMap.remove(itemId);
-        if (item == null) {
-            item = new CollectionItem(itemId, value);
-        }
+        txMap.remove(itemId);
+        CollectionItem item = new CollectionItem(itemId, value);
         getMap().put(itemId, item);
     }
 
@@ -296,10 +292,11 @@ public abstract class CollectionContainer implements DataSerializable {
         final Iterator<TxCollectionItem> iterator = txMap.values().iterator();
 
         while (iterator.hasNext()) {
-            final TxCollectionItem item = iterator.next();
-            if (transactionId.equals(item.getTransactionId())) {
+            final TxCollectionItem txItem = iterator.next();
+            if (transactionId.equals(txItem.getTransactionId())) {
                 iterator.remove();
-                if (item.isRemoveOperation()) {
+                if (txItem.isRemoveOperation()) {
+                    CollectionItem item = new CollectionItem(txItem.itemId, txItem.value);
                     getCollection().add(item);
                 }
             }

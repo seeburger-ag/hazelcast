@@ -14,7 +14,8 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <name>hazelcast-spring</name>
@@ -24,7 +25,7 @@
     <parent>
         <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-root</artifactId>
-        <version>3.2.6.SEE2-SNAPSHOT</version>
+        <version>3.3.1.SEE1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -32,8 +33,6 @@
         <org.springframework.version>3.1.0.RELEASE</org.springframework.version>
         <jsr250.api.version>1.0</jsr250.api.version>
         <hibernate.core.version>3.5.0-Final</hibernate.core.version>
-        <org.mongodb.version>2.7.3</org.mongodb.version>
-        <org.springframework.data.mongodb>1.0.1.RELEASE</org.springframework.data.mongodb>
         <!-- needed for checkstyle/findbugs -->
         <main.basedir>${project.parent.basedir}</main.basedir>
     </properties>
@@ -55,7 +54,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>1.7</version>
+                <version>${animal.sniffer.plugin.version}</version>
                 <configuration>
                     <signature>
                         <groupId>org.codehaus.mojo.signature</groupId>
@@ -191,34 +190,10 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongo-java-driver</artifactId>
-            <version>${org.mongodb.version}</version>
-            <scope>provided</scope>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-tx</artifactId>
             <version>${org.springframework.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-mongodb</artifactId>
-            <version>${org.springframework.data.mongodb}</version>
-            <scope>provided</scope>
-            <optional>true</optional>
-            <exclusions>
-                <exclusion>
-                    <artifactId>spring-tx</artifactId>
-                    <groupId>org.springframework</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>mongo-java-driver</artifactId>
-                    <groupId>org.mongodb</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.seeburger.as</groupId>

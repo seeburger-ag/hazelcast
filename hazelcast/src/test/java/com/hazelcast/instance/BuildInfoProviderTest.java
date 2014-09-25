@@ -46,13 +46,6 @@ public class BuildInfoProviderTest {
 
         assertFalse(VERSION_PATTERN.matcher("3.SEE1").matches());
         assertFalse(VERSION_PATTERN.matcher("3.SEE1-SNAPSHOT").matches());
-        assertFalse(VERSION_PATTERN.matcher("3.3.SEE1").matches());
-        assertFalse(VERSION_PATTERN.matcher("3.3.SEE1-SNAPSHOT").matches());
-        assertFalse(VERSION_PATTERN.matcher("3.3.2.SEE1").matches());
-        assertFalse(VERSION_PATTERN.matcher("3.3.2.SEE1-SNAPSHOT").matches());
-
-        assertFalse(VERSION_PATTERN.matcher("3.SEE1").matches());
-        assertFalse(VERSION_PATTERN.matcher("3.SEE1-SNAPSHOT").matches());
         assertTrue(VERSION_PATTERN.matcher("3.3.SEE1").matches());
         assertTrue(VERSION_PATTERN.matcher("3.3.SEE1-SNAPSHOT").matches());
         assertTrue(VERSION_PATTERN.matcher("3.3.2.SEE1").matches());

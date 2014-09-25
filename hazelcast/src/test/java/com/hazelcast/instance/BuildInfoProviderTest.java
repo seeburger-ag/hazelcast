@@ -20,7 +20,7 @@ public class BuildInfoProviderTest {
 
     // major.minor.patch-RC-SNAPSHOT
     private static final Pattern VERSION_PATTERN
-            = Pattern.compile("^[\\d]+\\.[\\d]+(\\.[\\d]+)?(\\-[\\w]+)?(\\-SNAPSHOT)?$");
+            = Pattern.compile("^[\\d]+\\.[\\d]+(\\.[\\d]+)?(\\-[\\w]+)?(\\.SEE+[\\d]+)?(\\-SNAPSHOT)?$");
 
     @Test
     public void testPattern() {
@@ -43,6 +43,20 @@ public class BuildInfoProviderTest {
         assertFalse(VERSION_PATTERN.matcher("3.").matches());
         assertFalse(VERSION_PATTERN.matcher("3.1.RC").matches());
         assertFalse(VERSION_PATTERN.matcher("3.1.SNAPSHOT").matches());
+
+        assertFalse(VERSION_PATTERN.matcher("3.SEE1").matches());
+        assertFalse(VERSION_PATTERN.matcher("3.SEE1-SNAPSHOT").matches());
+        assertFalse(VERSION_PATTERN.matcher("3.3.SEE1").matches());
+        assertFalse(VERSION_PATTERN.matcher("3.3.SEE1-SNAPSHOT").matches());
+        assertFalse(VERSION_PATTERN.matcher("3.3.2.SEE1").matches());
+        assertFalse(VERSION_PATTERN.matcher("3.3.2.SEE1-SNAPSHOT").matches());
+
+        assertFalse(VERSION_PATTERN.matcher("3.SEE1").matches());
+        assertFalse(VERSION_PATTERN.matcher("3.SEE1-SNAPSHOT").matches());
+        assertTrue(VERSION_PATTERN.matcher("3.3.SEE1").matches());
+        assertTrue(VERSION_PATTERN.matcher("3.3.SEE1-SNAPSHOT").matches());
+        assertTrue(VERSION_PATTERN.matcher("3.3.2.SEE1").matches());
+        assertTrue(VERSION_PATTERN.matcher("3.3.2.SEE1-SNAPSHOT").matches());
     }
 
     @Test

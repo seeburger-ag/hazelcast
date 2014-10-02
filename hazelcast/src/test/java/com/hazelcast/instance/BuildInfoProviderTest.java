@@ -20,7 +20,7 @@ public class BuildInfoProviderTest {
 
     // major.minor.patch-RC-SNAPSHOT
     private static final Pattern VERSION_PATTERN
-            = Pattern.compile("^[\\d]+\\.[\\d]+(\\.[\\d]+)?(\\-[\\w]+)?(\\.SEE+[\\d]+)?(\\-SNAPSHOT)?$");
+            = Pattern.compile("^[\\d]+\\.[\\d]+(\\.[\\d]+)?(\\-[\\w]+)?(\\.SEE[\\d]+)?(\\-SNAPSHOT)?$");
 
     @Test
     public void testPattern() {

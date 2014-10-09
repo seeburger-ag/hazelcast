@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="hazelcast-all/src/main/java"/>
+	<classpathentry kind="src" path="hazelcast-hibernate/hazelcast-hibernate3/src/main/java"/>
+	<classpathentry kind="src" path="hazelcast-hibernate/hazelcast-hibernate4/src/main/java"/>
+	<classpathentry kind="src" path="hazelcast-hibernate/hazelcast-hibernate4/src/test/java"/>
+	<classpathentry kind="src" path="hazelcast-hibernate/hazelcast-hibernate3/src/test/java"/>
+	<classpathentry kind="src" path="hazelcast-build-utils/src/main/java"/>
 	<classpathentry kind="src" path="hazelcast-cloud/src/main/java"/>
-	<classpathentry kind="src" path="hazelcast-hibernate/src/main/java"/>
 	<classpathentry kind="src" path="hazelcast-spring/src/main/java"/>
 	<classpathentry kind="src" path="hazelcast-client/src/main/java"/>
 	<classpathentry kind="src" path="hazelcast-cloud/src/test/java"/>
@@ -10,7 +14,6 @@
 	<classpathentry kind="src" path="hazelcast-ra/src/main/java"/>
 	<classpathentry kind="src" path="hazelcast-wm/src/main/java"/>
 	<classpathentry kind="src" path="hazelcast/src/main/java"/>
-	<classpathentry kind="src" path="hazelcast-hibernate/src/test/java"/>
 	<classpathentry kind="src" path="hazelcast-wm/src/test/java"/>
 	<classpathentry kind="src" path="hazelcast-spring/src/test/java"/>
 	<classpathentry kind="src" path="hazelcast/src/test/java"/>

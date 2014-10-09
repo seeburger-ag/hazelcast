@@ -108,7 +108,7 @@
                 </executions>
                 <dependencies>
                     <dependency>
-                        <groupId>com.hazelcast</groupId>
+                        <groupId>com.seeburger.as</groupId>
                         <artifactId>hazelcast-build-utils</artifactId>
                         <version>${project.version}</version>
                     </dependency>

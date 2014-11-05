@@ -14,25 +14,18 @@
  * limitations under the License.
  */
 
-package com.hazelcast.config;
+package com.hazelcast.map.eviction;
+
 /**
- * Eviction Policy enum.
+ * Used for providing runtime memory information of Java virtual machine.
+ *
+ * @see {@link com.hazelcast.map.eviction.EvictionOperator#memoryInfoAccessor}
  */
-public enum EvictionPolicy {
-    /**
-     * Least Recently Used
-     */
-    LRU,
-    /**
-     * Least Frequently Used
-     */
-    LFU,
-    /**
-     * None
-     */
-    NONE,
-    /**
-     * Randomly
-     */
-    RANDOM
+public interface MemoryInfoAccessor {
+
+    long getTotalMemory();
+
+    long getFreeMemory();
+
+    long getMaxMemory();
 }

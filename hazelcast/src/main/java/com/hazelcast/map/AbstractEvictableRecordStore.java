@@ -1,19 +1,17 @@
 package com.hazelcast.map;
 
 import com.hazelcast.config.MapConfig;
-import com.hazelcast.map.eviction.EvictionHelper;
+import com.hazelcast.map.eviction.EvictionOperator;
+import com.hazelcast.map.eviction.MaxSizeChecker;
 import com.hazelcast.map.record.Record;
 import com.hazelcast.nio.serialization.Data;
 
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.TimeUnit;
 
-import static com.hazelcast.map.eviction.EvictionHelper.checkEvictable;
-import static com.hazelcast.map.eviction.EvictionHelper.evictableSize;
-import static com.hazelcast.map.eviction.EvictionHelper.fireEvent;
-import static com.hazelcast.util.ValidationUtil.isNotNegative;
+import static com.hazelcast.map.eviction.ExpirationTimeSetter.calculateExpirationWithDelay;
+import static com.hazelcast.map.eviction.ExpirationTimeSetter.setExpirationTime;
 
 /**
  * Contains eviction specific functionality.
@@ -58,8 +56,6 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
 
     private final long minEvictionCheckMillis;
 
-    private final long maxIdleTime;
-
     private final MapConfig.EvictionPolicy evictionPolicy;
 
     protected AbstractEvictableRecordStore(MapContainer mapContainer, int partitionId) {
@@ -70,7 +66,6 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
         this.evictionEnabled
                 = !MapConfig.EvictionPolicy.NONE.equals(this.evictionPolicy);
         this.expirable = isRecordStoreExpirable();
-        this.maxIdleTime = calculateMaxIdleTime();
     }
 
     private boolean isRecordStoreExpirable() {
@@ -206,7 +201,7 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
             return;
         }
         final MapConfig mapConfig = mapContainer.getMapConfig();
-        EvictionHelper.removeEvictableRecords(this, evictableSize, mapConfig, mapServiceContext, backup);
+        getEvictionOperator().removeEvictableRecords(this, evictableSize, mapConfig, backup);
     }
 
     private int getEvictableSize() {
@@ -214,11 +209,16 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
         if (size < 1) {
             return 0;
         }
-        final int evictableSize = evictableSize(size, mapContainer.getMapConfig(), mapServiceContext);
+        final int evictableSize = getEvictionOperator().evictableSize(size, mapContainer.getMapConfig());
         if (evictableSize < 1) {
             return 0;
         }
         return evictableSize;
+    }
+
+
+    private EvictionOperator getEvictionOperator() {
+        return mapServiceContext.getEvictionOperator();
     }
 
 
@@ -234,7 +234,9 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
     }
 
     private boolean isEvictable() {
-        return checkEvictable(mapContainer, partitionId);
+        final EvictionOperator evictionOperator = getEvictionOperator();
+        final MaxSizeChecker maxSizeChecker = evictionOperator.getMaxSizeChecker();
+        return maxSizeChecker.checkEvictable(mapContainer, partitionId);
     }
 
     protected void markRecordStoreExpirable(long ttl) {
@@ -292,38 +294,11 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
         assert time > 0L;
         assert time >= lastAccessTime;
 
-        result = time - lastAccessTime >= calculateExpirationWithDelay(maxIdleTime, backup);
+        result = time - lastAccessTime >= calculateExpirationWithDelay(mapContainer.getMaxIdleMillis(), backup);
 
         return result ? null : record;
     }
 
-    private long calculateMaxIdleTime() {
-        final MapConfig mapConfig = mapContainer.getMapConfig();
-        final int maxIdleSeconds = mapConfig.getMaxIdleSeconds();
-        if (maxIdleSeconds == 0) {
-            return Long.MAX_VALUE;
-        }
-        return mapServiceContext.convertTime(maxIdleSeconds, TimeUnit.SECONDS);
-    }
-
-    /**
-     * On backup partitions, this method delays key`s expiration.
-     */
-    private long calculateExpirationWithDelay(long value, boolean backup) {
-        isNotNegative(value, "value");
-        // todo Inherited 10 seconds default delay from previous versions, instead a new GroupProperty may be introduced.
-        final long delayMillis = TimeUnit.SECONDS.toMillis(10);
-        if (backup) {
-            final long sum = value + delayMillis;
-            // check for a potential long overflow.
-            if (sum < 0L) {
-                return Long.MAX_VALUE;
-            } else {
-                return sum;
-            }
-        }
-        return value;
-    }
 
     private Record isTTLExpired(Record record, long time, boolean backup) {
         if (record == null) {
@@ -361,7 +336,7 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
         if (nearCacheProvider.isNearCacheAndInvalidationEnabled(mapName)) {
             nearCacheProvider.invalidateAllNearCaches(mapName, key);
         }
-        fireEvent(key, value, mapName, mapServiceContext);
+        getEvictionOperator().fireEvent(key, value, mapName, mapServiceContext);
     }
 
     void increaseRecordEvictionCriteriaNumber(Record record, MapConfig.EvictionPolicy evictionPolicy) {
@@ -384,6 +359,9 @@ abstract class AbstractEvictableRecordStore extends AbstractRecordStore {
     protected void accessRecord(Record record, long now) {
         super.accessRecord(record, now);
         increaseRecordEvictionCriteriaNumber(record, evictionPolicy);
+
+        final long maxIdleMillis = mapContainer.getMaxIdleMillis();
+        setExpirationTime(record, maxIdleMillis);
     }
 
 

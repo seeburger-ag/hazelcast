@@ -14,25 +14,26 @@
  * limitations under the License.
  */
 
-package com.hazelcast.config;
+package com.hazelcast.map.eviction;
+
 /**
- * Eviction Policy enum.
+ * Provides runtime memory information to {@link com.hazelcast.map.eviction.EvictionOperator}.
  */
-public enum EvictionPolicy {
-    /**
-     * Least Recently Used
-     */
-    LRU,
-    /**
-     * Least Frequently Used
-     */
-    LFU,
-    /**
-     * None
-     */
-    NONE,
-    /**
-     * Randomly
-     */
-    RANDOM
+class RuntimeMemoryInfoAccessor implements MemoryInfoAccessor {
+
+    RuntimeMemoryInfoAccessor() {
+    }
+
+    public long getTotalMemory() {
+        return Runtime.getRuntime().totalMemory();
+    }
+
+    public long getFreeMemory() {
+        return Runtime.getRuntime().freeMemory();
+    }
+
+    public long getMaxMemory() {
+        return Runtime.getRuntime().maxMemory();
+    }
+
 }

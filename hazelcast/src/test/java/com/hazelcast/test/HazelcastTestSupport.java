@@ -21,10 +21,10 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.Partition;
 import com.hazelcast.core.PartitionService;
+import com.hazelcast.instance.HazelcastInstanceFactory;
 import com.hazelcast.instance.Node;
 import com.hazelcast.instance.TestUtil;
-import org.junit.After;
-import org.junit.ComparisonFailure;
+import com.hazelcast.partition.InternalPartitionService;
 
 import java.util.Collection;
 import java.util.Map;
@@ -34,10 +34,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
+
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import org.junit.After;
+import org.junit.ComparisonFailure;
 
 public abstract class HazelcastTestSupport {
 
@@ -370,5 +373,38 @@ public abstract class HazelcastTestSupport {
         return className + "<" + valueString + ">";
     }
 
+    public static boolean isInstanceInSafeState(final HazelcastInstance instance) {
+        final Node node = TestUtil.getNode(instance);
+        if (node != null) {
+            final InternalPartitionService ps = node.getPartitionService();
+            return ps.isMemberStateSafe();
+        } else {
+            return true;
+        }
+    }
 
+    public static void waitClusterForSafeState(final HazelcastInstance instance) {
+        assertTrueEventually(new AssertTask() {
+            public void run() {
+                assertTrue(isInstanceInSafeState(instance));
+            }
+        });
+    }
+
+    public static boolean isAllInSafeState() {
+        for (HazelcastInstance hz : HazelcastInstanceFactory.getAllHazelcastInstances()) {
+            if (!isInstanceInSafeState(hz)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static void waitAllForSafeState() {
+        assertTrueEventually(new AssertTask() {
+            public void run() {
+                assertTrue(isAllInSafeState());
+            }
+        });
+    }
 }

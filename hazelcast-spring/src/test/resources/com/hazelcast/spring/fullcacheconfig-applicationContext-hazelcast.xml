@@ -203,6 +203,7 @@
 
             <hz:multimap name="testMultimap"
                          value-collection-type="LIST">
+
                 <hz:entry-listeners>
                     <hz:entry-listener class-name="com.hazelcast.spring.DummyEntryListener" include-value="true"/>
                     <hz:entry-listener implementation="dummyEntryListener" local="true"/>

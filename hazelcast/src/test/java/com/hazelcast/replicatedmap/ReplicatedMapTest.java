@@ -976,6 +976,52 @@ public class ReplicatedMapTest extends ReplicatedMapBaseTest {
     }
 
     @Test
+    public void testAddListenerObjectDelay0() throws Exception {
+        testAddEntryListener(buildConfig(InMemoryFormat.OBJECT, 0));
+    }
+
+    @Test
+    public void testAddListenerObjectDelayDefault() throws Exception {
+        testAddEntryListener(buildConfig(InMemoryFormat.OBJECT, ReplicatedMapConfig.DEFAULT_REPLICATION_DELAY_MILLIS));
+    }
+
+    @Test
+    public void testAddListenerBinaryDelay0() throws Exception {
+        testAddEntryListener(buildConfig(InMemoryFormat.BINARY, 0));
+    }
+
+    @Test
+    public void testAddListenerBinaryDelayDefault() throws Exception {
+        testAddEntryListener(buildConfig(InMemoryFormat.BINARY, ReplicatedMapConfig.DEFAULT_REPLICATION_DELAY_MILLIS));
+    }
+
+    private void testAddEntryListener(Config config) throws TimeoutException {
+        TestHazelcastInstanceFactory nodeFactory = createHazelcastInstanceFactory(2);
+
+        HazelcastInstance instance1 = nodeFactory.newHazelcastInstance(config);
+        HazelcastInstance instance2 = nodeFactory.newHazelcastInstance(config);
+
+        final ReplicatedMap<String, String> map1 = instance1.getReplicatedMap("default");
+        final ReplicatedMap<String, String> map2 = instance2.getReplicatedMap("default");
+
+        SimpleEntryListener listener = new SimpleEntryListener(1, 0);
+        map2.addEntryListener(listener, "foo-18");
+
+        final int operations = 100;
+        WatchedOperationExecutor executor = new WatchedOperationExecutor();
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < operations; i++) {
+                    map1.put("foo-" + i, "bar");
+                }
+            }
+        }, 60, EntryEventType.ADDED, operations, 1, map1, map2);
+
+        assertOpenEventually(listener.addLatch);
+    }
+
+    @Test
     public void testEvictionObjectDelay0() throws Exception {
         testEviction(buildConfig(InMemoryFormat.OBJECT, 0));
     }

@@ -176,7 +176,8 @@ public class JobSupervisor {
     }
 
     // TODO Not yet fully supported
-    /* public boolean cancelNotifyAndRestart() {
+    /*
+    public boolean cancelNotifyAndRestart() {
         // Cancel all partition states
         jobProcessInformation.cancelPartitionState();
 
@@ -208,7 +209,8 @@ public class JobSupervisor {
         // TODO restart with a new KeyValueJob
 
         return true;
-    } */
+    }
+    */
 
     public TrackableJobFuture cancel() {
         String jobId = getConfiguration().getJobId();

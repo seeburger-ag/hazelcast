@@ -47,16 +47,20 @@ import static org.mockito.Mockito.when;
 @RunWith(HazelcastSerialClassRunner.class)
 @Category(QuickTest.class)
 public class TransactionImplTest {
+
     @Test
     public void testTransactionBegin_whenBeginThrowsException() throws Exception {
+
         TransactionImpl transaction;
         TransactionManagerServiceImpl transactionManagerService = mock(TransactionManagerServiceImpl.class);
         RuntimeException expectedException = new RuntimeException("example exception");
         when(transactionManagerService.pickBackupAddresses(anyInt()))
                 .thenThrow(expectedException);
+
         NodeEngine nodeEngine = mock(NodeEngine.class);
         when(nodeEngine.getLocalMember()).thenReturn(new MemberImpl());
         when(nodeEngine.getLogger(TransactionImpl.class)).thenReturn(new DummyLogger());
+
         TransactionOptions options = TransactionOptions.getDefault();
         transaction = new TransactionImpl(transactionManagerService, nodeEngine, options, null);
         try {
@@ -65,8 +69,9 @@ public class TransactionImplTest {
         } catch (Exception e) {
             assertEquals(expectedException, e);
         }
-// other independent transaction in same thread
-// should behave identically
+
+        // other independent transaction in same thread
+        // should behave identically
         transaction = new TransactionImpl(transactionManagerService, nodeEngine, options, "123");
         try {
             transaction.begin();
@@ -80,9 +85,11 @@ public class TransactionImplTest {
     public void testLocalTransaction_ThrowsExceptionDuringCommit() throws Exception {
         TransactionImpl transaction;
         TransactionManagerServiceImpl transactionManagerService = mock(TransactionManagerServiceImpl.class);
+
         NodeEngine nodeEngine = mock(NodeEngine.class);
         when(nodeEngine.getLocalMember()).thenReturn(new MemberImpl());
         when(nodeEngine.getLogger(TransactionImpl.class)).thenReturn(new DummyLogger());
+
         TransactionOptions options = new TransactionOptions().setTransactionType(TransactionType.LOCAL);
         transaction = new TransactionImpl(transactionManagerService, nodeEngine, options, "dummy-uuid");
         transaction.begin();
@@ -94,12 +101,15 @@ public class TransactionImplTest {
     public void test2PhaseTransaction_ThrowsExceptionDuringPrepare() throws Exception {
         TransactionImpl transaction;
         TransactionManagerServiceImpl transactionManagerService = mock(TransactionManagerServiceImpl.class);
+
         NodeEngine nodeEngine = mock(NodeEngine.class);
         when(nodeEngine.getLocalMember()).thenReturn(new MemberImpl());
         when(nodeEngine.getLogger(TransactionImpl.class)).thenReturn(new DummyLogger());
+
         TransactionOptions options = new TransactionOptions()
                 .setTransactionType(TransactionType.TWO_PHASE).setDurability(0);
         transaction = new TransactionImpl(transactionManagerService, nodeEngine, options, "dummy-uuid");
+
         transaction.begin();
         transaction.addTransactionLog(new FailingTransactionLog(true, true, false));
         transaction.prepare();
@@ -109,9 +119,11 @@ public class TransactionImplTest {
     public void test2PhaseTransaction_ThrowsExceptionDuringCommit() throws Exception {
         TransactionImpl transaction;
         TransactionManagerServiceImpl transactionManagerService = mock(TransactionManagerServiceImpl.class);
+
         NodeEngine nodeEngine = mock(NodeEngine.class);
         when(nodeEngine.getLocalMember()).thenReturn(new MemberImpl());
         when(nodeEngine.getLogger(TransactionImpl.class)).thenReturn(new DummyLogger());
+
         TransactionOptions options = new TransactionOptions()
                 .setTransactionType(TransactionType.TWO_PHASE).setDurability(0);
         transaction = new TransactionImpl(transactionManagerService, nodeEngine, options, "dummy-uuid");
@@ -161,23 +173,19 @@ public class TransactionImplTest {
         public Object get() throws InterruptedException, ExecutionException {
             return null;
         }
-
         @Override
         public Object get(long timeout, TimeUnit unit)
                 throws InterruptedException, ExecutionException, TimeoutException {
             return null;
         }
-
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
             return false;
         }
-
         @Override
         public boolean isCancelled() {
             return false;
         }
-
         @Override
         public boolean isDone() {
             return false;
@@ -189,7 +197,6 @@ public class TransactionImplTest {
         public Object get() throws InterruptedException, ExecutionException {
             throw new TransactionException();
         }
-
         @Override
         public Object get(long timeout, TimeUnit unit)
                 throws InterruptedException, ExecutionException, TimeoutException {

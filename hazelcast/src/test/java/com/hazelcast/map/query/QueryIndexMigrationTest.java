@@ -132,6 +132,7 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
     }
 
     @Test
+    @Ignore
     public void testQueryWithIndexesWhileMigrating() throws Exception {
 
         HazelcastInstance h1 = nodeFactory.newHazelcastInstance();
@@ -194,7 +195,6 @@ public class QueryIndexMigrationTest extends HazelcastTestSupport {
      * see zendesk ticket #82
      */
     @Test(timeout = MINUTE)
-    @Ignore
     public void testQueryWithIndexDuringJoin() throws InterruptedException {
         final String name = "test";
         final String FIND_ME = "find-me";

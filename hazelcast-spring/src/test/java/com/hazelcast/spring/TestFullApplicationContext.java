@@ -19,6 +19,7 @@ package com.hazelcast.spring;
 import com.hazelcast.config.AwsConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.EntryListenerConfig;
+import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.ExecutorConfig;
 import com.hazelcast.config.GlobalSerializerConfig;
 import com.hazelcast.config.GroupConfig;
@@ -73,7 +74,6 @@ import com.hazelcast.spring.serialization.DummyDataSerializableFactory;
 import com.hazelcast.spring.serialization.DummyPortableFactory;
 import com.hazelcast.test.annotation.QuickTest;
 import com.hazelcast.wan.WanReplicationEndpoint;
-
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -84,7 +84,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 
 import javax.annotation.Resource;
-
 import java.net.InetSocketAddress;
 import java.nio.ByteOrder;
 import java.util.Collection;
@@ -95,7 +94,12 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @RunWith(CustomSpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"fullcacheconfig-applicationContext-hazelcast.xml"})
@@ -193,7 +197,7 @@ public class TestFullApplicationContext {
         assertNotNull(testMapConfig);
         assertEquals("testMap", testMapConfig.getName());
         assertEquals(2, testMapConfig.getBackupCount());
-        assertEquals(MapConfig.EvictionPolicy.NONE, testMapConfig.getEvictionPolicy());
+        assertEquals(EvictionPolicy.NONE, testMapConfig.getEvictionPolicy());
         assertEquals(Integer.MAX_VALUE, testMapConfig.getMaxSizeConfig().getSize());
         assertEquals(30, testMapConfig.getEvictionPercentage());
         assertEquals(0, testMapConfig.getTimeToLiveSeconds());
@@ -256,7 +260,7 @@ public class TestFullApplicationContext {
         assertEquals("simpleMap", simpleMapConfig.getName());
         assertEquals(3, simpleMapConfig.getBackupCount());
         assertEquals(1, simpleMapConfig.getAsyncBackupCount());
-        assertEquals(MapConfig.EvictionPolicy.LRU, simpleMapConfig.getEvictionPolicy());
+        assertEquals(EvictionPolicy.LRU, simpleMapConfig.getEvictionPolicy());
         assertEquals(10, simpleMapConfig.getMaxSizeConfig().getSize());
         assertEquals(50, simpleMapConfig.getEvictionPercentage());
         assertEquals(1, simpleMapConfig.getTimeToLiveSeconds());

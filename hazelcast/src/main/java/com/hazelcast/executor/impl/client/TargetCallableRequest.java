@@ -19,16 +19,18 @@ package com.hazelcast.executor.impl.client;
 import com.hazelcast.client.impl.client.TargetClientRequest;
 import com.hazelcast.executor.impl.DistributedExecutorService;
 import com.hazelcast.executor.impl.ExecutorPortableHook;
-import com.hazelcast.executor.impl.MemberCallableTaskOperation;
+import com.hazelcast.executor.impl.operations.MemberCallableTaskOperation;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.PortableReader;
 import com.hazelcast.nio.serialization.PortableWriter;
 import com.hazelcast.security.SecurityContext;
 import com.hazelcast.spi.Operation;
 import com.hazelcast.util.ConstructorFunction;
 
+import javax.security.auth.Subject;
 import java.io.IOException;
 import java.security.Permission;
 import java.util.concurrent.Callable;
@@ -70,9 +72,11 @@ public final class TargetCallableRequest extends TargetClientRequest implements 
     protected Operation prepareOperation() {
         SecurityContext securityContext = getClientEngine().getSecurityContext();
         if (securityContext != null) {
-            callable = securityContext.createSecureCallable(getEndpoint().getSubject(), callable);
+            Subject subject = getEndpoint().getSubject();
+            callable = securityContext.createSecureCallable(subject, callable);
         }
-        return new MemberCallableTaskOperation(name, uuid, callable);
+        Data callableData = serializationService.toData(callable);
+        return new MemberCallableTaskOperation(name, uuid, callableData);
     }
 
     @Override

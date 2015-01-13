@@ -231,7 +231,6 @@ public class QueueStoreTest extends HazelcastTestSupport {
         queueStoreConfig.setFactoryImplementation(queueStoreFactory);
         queueConfig.setQueueStoreConfig(queueStoreConfig);
 
-
         HazelcastInstance instance = createHazelcastInstance(config);
 
         final IQueue<Integer> queue = instance.getQueue(queueName);
@@ -244,8 +243,9 @@ public class QueueStoreTest extends HazelcastTestSupport {
         assertEquals("Queue store size should be 1 but found " + size, 1, size);
     }
 
+
     @Test
-    public void testQueueStoreFactoryIsNotInitialized_whenQueueStoreConfigDisabled() {
+    public void testQueueStoreFactoryIsNotInitialized_whenDisabledInQueueStoreConfig() {
         final String queueName = randomString();
         final Config config = new Config();
         final QueueConfig queueConfig = config.getQueueConfig(queueName);
@@ -264,8 +264,8 @@ public class QueueStoreTest extends HazelcastTestSupport {
         final TestQueueStore testQueueStore = (TestQueueStore) queueStore;
         final int size = testQueueStore.store.size();
 
-        assertEquals("Expected no queue store operation" +
-                " since we disabled it in queue store", 0, size);
+        assertEquals("Expected not queue store operation" +
+                " since we disabled it in QueueStoreConfig but found initialized ", 0, size);
     }
 
     @Test
@@ -287,7 +287,7 @@ public class QueueStoreTest extends HazelcastTestSupport {
         queue.add(2);
         queue.add(3);
 
-        // this triggers bulk load operation.
+        // this triggers bulk loading.
         final int value = queue.peek();
 
         assertEquals(1, value);

@@ -16,12 +16,14 @@
 
 package com.hazelcast.partition;
 
+import com.hazelcast.core.Member;
 import com.hazelcast.core.MigrationListener;
 import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.CoreService;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +32,8 @@ public interface InternalPartitionService extends CoreService {
 
     String SERVICE_NAME = "hz:core:partitionService";
 
-    int MAX_PARALLEL_REPLICATIONS = 4;
-    long DEFAULT_REPLICA_SYNC_DELAY = 15000L;
-    long REPLICA_SYNC_RETRY_DELAY = 1000L;
+    long DEFAULT_REPLICA_SYNC_DELAY = 5000L;
+    long REPLICA_SYNC_RETRY_DELAY = 500L;
 
     /**
      * Gets the owner of the partition if it's set.
@@ -117,9 +118,13 @@ public interface InternalPartitionService extends CoreService {
 
     int getMemberGroupsSize();
 
+    int getMaxBackupCount();
+
     String addMigrationListener(MigrationListener migrationListener);
 
     boolean removeMigrationListener(String registrationId);
+
+    Member getMember(Address address);
 
     long getMigrationQueueSize();
 
@@ -143,6 +148,8 @@ public interface InternalPartitionService extends CoreService {
 
     InternalPartition[] getPartitions();
 
+    Collection<MigrationInfo> getActiveMigrations();
+
     void firstArrangement();
 
     long[] getPartitionReplicaVersions(int partitionId);
@@ -151,7 +158,7 @@ public interface InternalPartitionService extends CoreService {
 
     long[] incrementPartitionReplicaVersions(int partitionId, int totalBackupCount);
 
-    void setPartitionReplicaVersions(int partitionId, long[] versions);
+    void setPartitionReplicaVersions(int partitionId, long[] versions, int replicaOffset);
 
     void clearPartitionReplicaVersions(int partitionId);
 

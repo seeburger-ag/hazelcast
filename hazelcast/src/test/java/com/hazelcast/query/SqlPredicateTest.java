@@ -29,6 +29,7 @@ import com.hazelcast.query.SampleObjects.ObjectWithLong;
 import com.hazelcast.query.SampleObjects.ObjectWithShort;
 import com.hazelcast.query.SampleObjects.ObjectWithSqlDate;
 import com.hazelcast.query.SampleObjects.ObjectWithSqlTimestamp;
+import com.hazelcast.query.SampleObjects.ObjectWithUUID;
 import com.hazelcast.query.impl.DateHelperTest;
 import com.hazelcast.query.impl.QueryEntry;
 import com.hazelcast.test.HazelcastSerialClassRunner;
@@ -44,6 +45,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.hazelcast.instance.TestUtil.toData;
@@ -278,6 +280,14 @@ public class SqlPredicateTest {
         assertSqlTrue("attribute = true", value);
         assertSqlFalse("attribute = false", value);
         assertSqlFalse("not attribute", value);
+    }
+
+    @Test
+    public void testSql_withUUID() {
+        UUID uuid = UUID.randomUUID();
+        ObjectWithUUID value = new ObjectWithUUID(uuid);
+        assertSqlTrue("attribute = '" + uuid.toString() + "'", value);
+        assertSqlFalse("attribute = '" + UUID.randomUUID().toString() + "'", value);
     }
 
     @Test

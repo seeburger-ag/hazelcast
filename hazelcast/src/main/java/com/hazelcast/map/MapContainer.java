@@ -161,6 +161,10 @@ public class MapContainer {
         interceptorMap = new ConcurrentHashMap<String, MapInterceptor>();
         nearCacheEnabled = mapConfig.getNearCacheConfig() != null;
         nearCacheSizeEstimator = SizeEstimators.createNearCacheSizeEstimator();
+
+        for (MapInterceptor interceptor : mapConfig.getInterceptors()) {
+            addInterceptor(interceptor);
+        }
     }
 
     private PartitioningStrategy createPartitioningStrategy() {

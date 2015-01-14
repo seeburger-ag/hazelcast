@@ -22,23 +22,28 @@ import com.hazelcast.config.PermissionConfig.PermissionType;
 import com.hazelcast.core.HazelcastException;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
+import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.mapreduce.TopologyChangedStrategy;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.IOUtil;
 import com.hazelcast.spi.ServiceConfigurationParser;
 import com.hazelcast.util.ExceptionUtil;
+
 import org.w3c.dom.*;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -888,7 +893,18 @@ public class XmlConfigBuilder extends AbstractXmlConfigHelper implements ConfigB
                 }
             } else if ("partition-strategy".equals(nodeName)) {
                 mapConfig.setPartitioningStrategyConfig(new PartitioningStrategyConfig(value));
-            }
+            } else if ("interceptors".equals(nodeName)) {
+                List<MapInterceptor> interceptors = new ArrayList<MapInterceptor>();
+                for (org.w3c.dom.Node interceptor : new IterableNodeList(n.getChildNodes())) {
+                    if(interceptor.getNodeType() != 1) {
+                        continue;
+                    }
+                    Class cls = Class.forName(interceptor.getTextContent());
+                    Object obj = cls.newInstance();
+                    interceptors.add((MapInterceptor)obj);
+                }
+                mapConfig.setInterceptors(interceptors);
+             }
         }
         this.config.addMapConfig(mapConfig);
     }

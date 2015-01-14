@@ -16,6 +16,7 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.merge.PutIfAbsentMapMergePolicy;
 
 import java.util.ArrayList;
@@ -80,6 +81,8 @@ public class MapConfig {
 
     private MapConfigReadOnly readOnly;
 
+    private List<MapInterceptor> mapInterceptors;
+
     public enum EvictionPolicy {
         LRU, LFU, NONE
     }
@@ -112,6 +115,7 @@ public class MapConfig {
         this.mapIndexConfigs = new ArrayList<MapIndexConfig>(config.getMapIndexConfigs());
         this.partitioningStrategyConfig = config.partitioningStrategyConfig != null
                 ? new PartitioningStrategyConfig(config.getPartitioningStrategyConfig()) : null;
+        this.mapInterceptors = config.getInterceptors();
     }
 
     public MapConfigReadOnly getAsReadOnly(){
@@ -119,6 +123,17 @@ public class MapConfig {
             readOnly = new MapConfigReadOnly(this);
         }
         return readOnly;
+    }
+
+    public void setInterceptors(List<MapInterceptor> interceptor){
+        this.mapInterceptors = interceptor;
+    }
+
+    public List<MapInterceptor> getInterceptors(){
+        if(mapInterceptors == null){
+            mapInterceptors = new ArrayList<MapInterceptor>();
+        }
+        return mapInterceptors;
     }
 
     /**

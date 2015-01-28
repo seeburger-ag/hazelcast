@@ -34,9 +34,17 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @author mdogan 11/9/12
+ * A {@link RegionCache} implementation based on the underlying IMap
  */
 public class IMapRegionCache implements RegionCache {
+
+    private static final long COMPARISON_VALUE = 500;
+
+    private static final SoftLock LOCK_SUCCESS = new SoftLock() {
+    };
+
+    private static final SoftLock LOCK_FAILURE = new SoftLock() {
+    };
 
     private final String name;
     private final HazelcastInstance hazelcastInstance;
@@ -55,7 +63,7 @@ public class IMapRegionCache implements RegionCache {
         this.map = hazelcastInstance.getMap(this.name);
         lockTimeout = CacheEnvironment.getLockTimeoutInMillis(props);
         final long maxOperationTimeout = HazelcastTimestamper.getMaxOperationTimeout(hazelcastInstance);
-        tryLockAndGetTimeout = Math.min(maxOperationTimeout, 500);
+        tryLockAndGetTimeout = Math.min(maxOperationTimeout, COMPARISON_VALUE);
         explicitVersionCheckEnabled = CacheEnvironment.isExplicitVersionCheckEnabled(props);
         logger = createLogger(name, hazelcastInstance);
     }
@@ -76,27 +84,7 @@ public class IMapRegionCache implements RegionCache {
         }
         if (versionComparator != null && currentVersion != null) {
             if (explicitVersionCheckEnabled && value instanceof CacheEntry) {
-                final CacheEntry currentEntry = (CacheEntry) value;
-                try {
-                    if (map.tryLock(key, tryLockAndGetTimeout, TimeUnit.MILLISECONDS)) {
-                        try {
-                            final CacheEntry previousEntry = (CacheEntry) map.get(key);
-                            if (previousEntry == null ||
-                                    versionComparator.compare(currentEntry.getVersion(), previousEntry.getVersion()) > 0) {
-                                map.set(key, value);
-                                return true;
-                            } else {
-                                return false;
-                            }
-                        } finally {
-                            map.unlock(key);
-                        }
-                    } else {
-                        return false;
-                    }
-                } catch (InterruptedException e) {
-                    return false;
-                }
+                return compareVersion(key, value);
             } else if (previousVersion == null || versionComparator.compare(currentVersion, previousVersion) > 0) {
                 map.set(key, value);
                 return true;
@@ -131,6 +119,7 @@ public class IMapRegionCache implements RegionCache {
     }
 
     public void clear() {
+        // map.evictAll();
         // clear all cache and destroy proxies
         // when a new operation done over this proxy
         // Hazelcast will initialize and create map again.
@@ -166,7 +155,32 @@ public class IMapRegionCache implements RegionCache {
         }
     }
 
-    private static final SoftLock LOCK_SUCCESS = new SoftLock() {};
+    private boolean compareVersion(Object key, Object value) {
+        final CacheEntry currentEntry = (CacheEntry) value;
 
-    private static final SoftLock LOCK_FAILURE = new SoftLock() {};
+        // Ideally this would be an entry processor. Unfortunately there is no guarantee that
+        // the versionComparator is Serializable.
+        //
+        // Previously, this was implemented using a `map.get` followed by `map.set` wrapped inside a `map.tryLock`
+        // block.  Unfortunately this implementation was prone to `IllegalMonitorStateException` when the lock was
+        // released under heavy load or after network partitions.  Hence this implementation now uses a spin loop
+        // around atomic operations.
+        long timeout = System.currentTimeMillis() + tryLockAndGetTimeout;
+        do {
+            final CacheEntry previousEntry = (CacheEntry) map.get(key);
+            if (previousEntry == null) {
+                if (map.putIfAbsent(key, value) == null) {
+                    return true;
+                }
+            } else if (versionComparator.compare(currentEntry.getVersion(), previousEntry.getVersion()) > 0) {
+                if (map.replace(key, previousEntry, value)) {
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        } while (System.currentTimeMillis() < timeout);
+
+        return false;
+    }
 }

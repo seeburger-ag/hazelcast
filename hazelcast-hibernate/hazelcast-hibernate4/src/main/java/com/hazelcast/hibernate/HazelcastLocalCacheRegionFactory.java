@@ -17,23 +17,27 @@
 package com.hazelcast.hibernate;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.hibernate.local.CleanupService;
 import com.hazelcast.hibernate.local.LocalRegionCache;
 import com.hazelcast.hibernate.local.TimestampsRegionCache;
 import com.hazelcast.hibernate.region.HazelcastCollectionRegion;
 import com.hazelcast.hibernate.region.HazelcastEntityRegion;
 import com.hazelcast.hibernate.region.HazelcastTimestampsRegion;
 import org.hibernate.cache.CacheException;
-import org.hibernate.cache.spi.*;
-import org.hibernate.cfg.Settings;
+import org.hibernate.cache.spi.CacheDataDescription;
+import org.hibernate.cache.spi.CollectionRegion;
+import org.hibernate.cache.spi.EntityRegion;
+import org.hibernate.cache.spi.RegionFactory;
+import org.hibernate.cache.spi.TimestampsRegion;
 
 import java.util.Properties;
 
+
+/**
+ * Simple RegionFactory implementation to return Hazelcast based local Region implementations
+ */
 public class HazelcastLocalCacheRegionFactory extends AbstractHazelcastCacheRegionFactory implements RegionFactory {
 
-    public static final int serialVersionUID = 1;
-
-    private transient CleanupService cleanupService;
+    private static final int serialVersionUID = 1;
 
     public HazelcastLocalCacheRegionFactory() {
     }
@@ -66,17 +70,5 @@ public class HazelcastLocalCacheRegionFactory extends AbstractHazelcastCacheRegi
             throws CacheException {
         return new HazelcastTimestampsRegion<LocalRegionCache>(instance, regionName, properties,
                 new TimestampsRegionCache(regionName, instance));
-    }
-
-    @Override
-    public void start(final Settings settings, final Properties properties) throws CacheException {
-        super.start(settings, properties);
-        cleanupService = new CleanupService(instance.getName());
-    }
-
-    @Override
-    public void stop() {
-        cleanupService.stop();
-        super.stop();
     }
 }

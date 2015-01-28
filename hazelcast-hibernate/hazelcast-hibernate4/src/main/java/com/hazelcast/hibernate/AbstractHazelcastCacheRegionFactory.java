@@ -19,6 +19,7 @@ package com.hazelcast.hibernate;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.hibernate.instance.HazelcastInstanceFactory;
 import com.hazelcast.hibernate.instance.IHazelcastInstanceLoader;
+import com.hazelcast.hibernate.local.CleanupService;
 import com.hazelcast.hibernate.region.HazelcastNaturalIdRegion;
 import com.hazelcast.hibernate.region.HazelcastQueryResultsRegion;
 import com.hazelcast.logging.ILogger;
@@ -32,14 +33,18 @@ import org.hibernate.cache.spi.access.AccessType;
 import org.hibernate.cfg.Settings;
 
 import java.util.Properties;
-import java.util.logging.Level;
 
+/**
+ * Abstract superclass of Hazelcast based {@link org.hibernate.cache.RegionFactory} implementations
+ */
 public abstract class AbstractHazelcastCacheRegionFactory implements RegionFactory {
 
-    private final ILogger LOG = Logger.getLogger(getClass());
-
-    private IHazelcastInstanceLoader instanceLoader = null;
     protected HazelcastInstance instance;
+    protected CleanupService cleanupService;
+    private final ILogger log = Logger.getLogger(getClass());
+
+    private IHazelcastInstanceLoader instanceLoader;
+
 
     public AbstractHazelcastCacheRegionFactory() {
     }
@@ -54,10 +59,13 @@ public abstract class AbstractHazelcastCacheRegionFactory implements RegionFacto
 
     public final QueryResultsRegion buildQueryResultsRegion(final String regionName, final Properties properties)
             throws CacheException {
-        return new HazelcastQueryResultsRegion(instance, regionName, properties);
+        HazelcastQueryResultsRegion region = new HazelcastQueryResultsRegion(instance, regionName, properties);
+        cleanupService.registerCache(region.getCache());
+        return region;
     }
 
-    public NaturalIdRegion buildNaturalIdRegion(final String regionName, final Properties properties, final CacheDataDescription metadata)
+    public NaturalIdRegion buildNaturalIdRegion(final String regionName, final Properties properties
+            , final CacheDataDescription metadata)
             throws CacheException {
         return new HazelcastNaturalIdRegion(instance, regionName, properties, metadata);
     }
@@ -74,20 +82,22 @@ public abstract class AbstractHazelcastCacheRegionFactory implements RegionFacto
     }
 
     public void start(final Settings settings, final Properties properties) throws CacheException {
-        LOG.info("Starting up " + getClass().getSimpleName());
+        log.info("Starting up " + getClass().getSimpleName());
         if (instance == null || !instance.getLifecycleService().isRunning()) {
             instanceLoader = HazelcastInstanceFactory.createInstanceLoader(properties);
             instance = instanceLoader.loadInstance();
         }
+        cleanupService = new CleanupService(instance.getName());
     }
 
     public void stop() {
         if (instanceLoader != null) {
-            LOG.info("Shutting down " + getClass().getSimpleName());
+            log.info("Shutting down " + getClass().getSimpleName());
             instanceLoader.unloadInstance();
             instance = null;
             instanceLoader = null;
         }
+        cleanupService.stop();
     }
 
     public HazelcastInstance getHazelcastInstance() {

@@ -23,12 +23,15 @@ import com.hazelcast.config.NearCacheConfig;
 import com.hazelcast.monitor.impl.NearCacheStatsImpl;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.SerializationService;
+import com.hazelcast.spi.ExecutionService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.ExceptionUtil;
+import com.hazelcast.util.QuickMath;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,6 +49,7 @@ public class NearCache {
      * Used when caching nonexistent values.
      */
     public static final Object NULL_OBJECT = new Object();
+    public static final String NEAR_CACHE_EXECUTOR_NAME = "hz:near-cache";
     private static final int HUNDRED_PERCENT = 100;
     private static final int EVICTION_PERCENTAGE = 20;
     private static final int CLEANUP_INTERVAL = 5000;
@@ -61,6 +65,34 @@ public class NearCache {
     private final ConcurrentMap<Data, CacheRecord> cache;
     private final NearCacheStatsImpl nearCacheStats;
     private final SerializationService serializationService;
+    private final Comparator<CacheRecord> selectedComparator;
+
+    private final Comparator<CacheRecord> lruComparator = new Comparator<CacheRecord>() {
+        public int compare(CacheRecord o1, CacheRecord o2) {
+            final int result = QuickMath.compareLongs(o1.lastAccessTime, o2.lastAccessTime);
+            if (result != 0) {
+                return result;
+            }
+            return QuickMath.compareIntegers(o1.key.getPartitionHash(), o2.key.getPartitionHash());
+        }
+    };
+
+    private final Comparator<CacheRecord> lfuComparator = new Comparator<CacheRecord>() {
+        public int compare(CacheRecord o1, CacheRecord o2) {
+            final int result = QuickMath.compareIntegers(o1.hit.get(), o2.hit.get());
+            if (result != 0) {
+                return result;
+            }
+            return QuickMath.compareIntegers(o1.key.getPartitionHash(), o2.key.getPartitionHash());
+        }
+    };
+
+    private final Comparator<CacheRecord> defaultComparator = new Comparator<CacheRecord>() {
+        public int compare(CacheRecord o1, CacheRecord o2) {
+            return QuickMath.compareIntegers(o1.key.getPartitionHash(), o2.key.getPartitionHash());
+        }
+    };
+
     private SizeEstimator nearCacheSizeEstimator;
 
     /**
@@ -76,6 +108,13 @@ public class NearCache {
         inMemoryFormat = nearCacheConfig.getInMemoryFormat();
         timeToLiveMillis = TimeUnit.SECONDS.toMillis(nearCacheConfig.getTimeToLiveSeconds());
         evictionPolicy = EvictionPolicy.valueOf(nearCacheConfig.getEvictionPolicy());
+        if (EvictionPolicy.LRU.equals(evictionPolicy)) {
+            selectedComparator = lruComparator;
+        } else if (EvictionPolicy.LFU.equals(evictionPolicy)) {
+            selectedComparator = lfuComparator;
+        } else {
+            selectedComparator = defaultComparator;
+        }
         cache = new ConcurrentHashMap<Data, CacheRecord>();
         canCleanUp = new AtomicBoolean(true);
         canEvict = new AtomicBoolean(true);
@@ -133,10 +172,12 @@ public class NearCache {
     private void fireEvictCache() {
         if (canEvict.compareAndSet(true, false)) {
             try {
-                nodeEngine.getExecutionService().execute("hz:near-cache", new Runnable() {
+                final ExecutionService executionService = nodeEngine.getExecutionService();
+                executionService.execute(NEAR_CACHE_EXECUTOR_NAME, new Runnable() {
                     public void run() {
                         try {
-                            TreeSet<CacheRecord> records = new TreeSet<CacheRecord>(cache.values());
+                            TreeSet<CacheRecord> records = new TreeSet<CacheRecord>(selectedComparator);
+                            records.addAll(cache.values());
                             int evictSize = cache.size() * EVICTION_PERCENTAGE / HUNDRED_PERCENT;
                             int i = 0;
                             for (CacheRecord record : records) {
@@ -148,6 +189,10 @@ public class NearCache {
                             }
                         } finally {
                             canEvict.set(true);
+                        }
+
+                        if (cache.size() >= maxSize && canEvict.compareAndSet(true, false)) {
+                            executionService.execute(NEAR_CACHE_EXECUTOR_NAME, this);
                         }
                     }
                 });
@@ -166,7 +211,7 @@ public class NearCache {
 
         if (canCleanUp.compareAndSet(true, false)) {
             try {
-                nodeEngine.getExecutionService().execute("hz:near-cache", new Runnable() {
+                nodeEngine.getExecutionService().execute(NEAR_CACHE_EXECUTOR_NAME, new Runnable() {
                     public void run() {
                         try {
                             lastCleanup = Clock.currentTimeMillis();
@@ -244,7 +289,7 @@ public class NearCache {
     /**
      * CacheRecord.
      */
-    public class CacheRecord implements Comparable<CacheRecord> {
+    public class CacheRecord {
         final Data key;
         final Object value;
         final long creationTime;
@@ -270,22 +315,6 @@ public class NearCache {
             long time = Clock.currentTimeMillis();
             return (maxIdleMillis > 0 && time > lastAccessTime + maxIdleMillis)
                     || (timeToLiveMillis > 0 && time > creationTime + timeToLiveMillis);
-        }
-
-        public int compareTo(CacheRecord o) {
-            if (EvictionPolicy.LRU.equals(evictionPolicy)) {
-                return ((Long) this.lastAccessTime).compareTo((o.lastAccessTime));
-            } else if (EvictionPolicy.LFU.equals(evictionPolicy)) {
-                return ((Integer) this.hit.get()).compareTo((o.hit.get()));
-            }
-            return 0;
-        }
-
-        public boolean equals(Object o) {
-            if (o != null && o instanceof CacheRecord) {
-                return this.compareTo((CacheRecord) o) == 0;
-            }
-            return false;
         }
 
         // If you don't think instances of this class will ever be inserted into a HashMap/HashTable,

@@ -25,22 +25,27 @@ import com.hazelcast.core.PartitionService;
 import com.hazelcast.instance.HazelcastInstanceFactory;
 import com.hazelcast.instance.Node;
 import com.hazelcast.instance.TestUtil;
+import com.hazelcast.partition.InternalPartition;
 import com.hazelcast.partition.InternalPartitionService;
-import org.junit.After;
-import org.junit.ComparisonFailure;
 
 import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import org.junit.After;
+import org.junit.ComparisonFailure;
 
 public abstract class HazelcastTestSupport {
 
@@ -259,7 +264,6 @@ public abstract class HazelcastTestSupport {
             sleepMillis(sleepMillis);
         }
 
-        printAllStackTraces();
         throw error;
     }
 
@@ -290,6 +294,16 @@ public abstract class HazelcastTestSupport {
      */
     public static void assertEqualsStringFormat(String message, Object expected, Object actual) {
         assertEquals(String.format(message, expected, actual), expected, actual);
+    }
+
+
+    public static <E> void assertEqualsEventually(final Callable<E> task, final E value) {
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() throws Exception {
+                assertEquals(value, task.call());
+            }
+        });
     }
 
     protected final TestHazelcastInstanceFactory createHazelcastInstanceFactory(int nodeCount) {
@@ -326,6 +340,31 @@ public abstract class HazelcastTestSupport {
             throw new RuntimeException(e);
         }
     }
+
+    public static InternalPartitionService getPartitionService(HazelcastInstance hz) {
+        Node node = getNode(hz);
+        return node.partitionService;
+    }
+
+     /**
+     * Gets a partition id owned by this particular member.
+      *
+     * @param hz
+     * @return
+     */
+     public static int getPartitionId(HazelcastInstance hz) {
+         warmUpPartitions(hz);
+         Node node = getNode(hz);
+
+         InternalPartitionService partitionService = getPartitionService(hz);
+         for (InternalPartition p : partitionService.getPartitions()) {
+             if (node.getThisAddress().equals(p.getOwnerOrNull())) {
+                 return p.getPartitionId();
+             }
+         }
+
+         throw new RuntimeException("No local partitions are found for hz: " + hz.getName());
+     }
 
     public static String generateKeyOwnedBy(HazelcastInstance instance) {
         return generateKeyInternal(instance, true);
@@ -447,11 +486,10 @@ public abstract class HazelcastTestSupport {
 
     public static boolean isAllInSafeState() {
         final Set<HazelcastInstance> nodeSet = HazelcastInstanceFactory.getAllHazelcastInstances();
-        final HazelcastInstance[] nodes = nodeSet.toArray(new HazelcastInstance[nodeSet.size()]);
-        return isAllInSafeState(nodes);
+        return isAllInSafeState(nodeSet);
     }
 
-    public static boolean isAllInSafeState(HazelcastInstance[] nodes) {
+    public static boolean isAllInSafeState(Collection<HazelcastInstance> nodes) {
         for (HazelcastInstance node : nodes) {
             if (!isInstanceInSafeState(node)) {
                 return false;
@@ -468,12 +506,16 @@ public abstract class HazelcastTestSupport {
         });
     }
 
-    public static void waitAllForSafeState(final HazelcastInstance... nodes) {
+    public static void waitAllForSafeState(final Collection<HazelcastInstance> nodes) {
         assertTrueEventually(new AssertTask() {
             public void run() {
                 assertTrue(isAllInSafeState(nodes));
             }
         });
+    }
+
+    public static void waitAllForSafeState(final HazelcastInstance... nodes) {
+        waitAllForSafeState(asList(nodes));
     }
 
     public static void assertExactlyOneSuccessfulRun(AssertTask task) {

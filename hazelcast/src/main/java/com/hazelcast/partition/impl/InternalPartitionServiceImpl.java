@@ -1886,7 +1886,7 @@ public class InternalPartitionServiceImpl implements InternalPartitionService, M
 
         private void logOwnerOfPartitionIsRemoved(PartitionReplicaChangeEvent event) {
             String warning = "Owner of partition is being removed! "
-                    + "Possible data loss for partition[" + event.getPartitionId() + "]. " + event;
+                    + "Affected partition[" + event.getPartitionId() + "]. " + event;
             partitionService.logger.warning(warning);
         }
     }

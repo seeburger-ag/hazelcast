@@ -219,6 +219,9 @@ public interface RecordStore {
 
     void clearPartition();
 
+    /**
+     * Resets the record store to it's initial state.
+     */
     void reset();
 
     boolean forceUnlock(Data dataKey);

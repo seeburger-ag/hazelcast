@@ -31,7 +31,6 @@ import com.hazelcast.spi.DefaultObjectNamespace;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.spi.exception.RetryableHazelcastException;
 import com.hazelcast.util.ExceptionUtil;
-
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -401,6 +400,9 @@ public class DefaultRecordStore extends AbstractEvictableRecordStore implements 
         return numOfClearedEntries;
     }
 
+    /**
+     * Resets the record store to it's initial state.
+     */
     @Override
     public void reset() {
         clearRecordsMap(Collections.<Data, Record>emptyMap());

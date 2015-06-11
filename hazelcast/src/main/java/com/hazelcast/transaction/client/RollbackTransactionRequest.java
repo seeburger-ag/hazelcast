@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.hazelcast.transaction.client;
 
-import com.hazelcast.client.ClientEndpoint;
 import com.hazelcast.client.impl.ClientEngineImpl;
 import com.hazelcast.security.permission.TransactionPermission;
 
@@ -29,8 +28,7 @@ public class RollbackTransactionRequest extends BaseTransactionRequest {
 
     @Override
     public Object innerCall() throws Exception {
-        final ClientEndpoint endpoint = getEndpoint();
-        endpoint.getTransactionContext(txnId).rollbackTransaction();
+        getTransactionContext().rollbackTransaction();
         endpoint.removeTransactionContext(txnId);
         return null;
     }

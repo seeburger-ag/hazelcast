@@ -30,8 +30,11 @@ ITransactionContext can be used to obtain:
 * `ITransactionalList<E>`, and
 * `ITransactionalSet<E>`.
 
+At present the following features are not available as in the Java Client:
 
-
+* Distributed Executor Service
+* Replicated Map
+* JCache
 
 A code example is shown below.
 
@@ -129,7 +132,7 @@ namespace Hazelcast.Client.Example
 ### Client Configuration
 You can configure the Hazelcast .NET client via API or XML. To start the client, you can pass a configuration or leave it empty to use default values.
 
-![image](images/NoteSmall.jpg) ***NOTE***: *.NET and Java clients are similar in terms of configuration. Therefore, you can refer to [Java Client](#java-client) section for configuration aspects. For information on .NET API documentation, please refer to the API document provided along with the Hazelcast Enterprise license*.
+![image](images/NoteSmall.jpg) ***NOTE***: *.NET and Java clients are similar in terms of configuration. Therefore, you can refer to [Java Client](#hazelcast-java-client) section for configuration aspects. For information on .NET API documentation, please refer to the API document provided along with the Hazelcast Enterprise license*.
 
 
 ### Client Startup

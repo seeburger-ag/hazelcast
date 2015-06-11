@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import java.util.EventObject;
 import java.util.Set;
 
 /**
- * A event that is send when a {@link InitialMembershipListener} registers itself on a {@link Cluster}. For more
- * information see the {@link InitialMembershipListener}.
+ * An event that is sent when a {@link InitialMembershipListener} registers itself on a {@link Cluster}. For more
+ * information, see the {@link InitialMembershipListener}.
  *
  * @author Peter Veentjer
  * @see InitialMembershipListener

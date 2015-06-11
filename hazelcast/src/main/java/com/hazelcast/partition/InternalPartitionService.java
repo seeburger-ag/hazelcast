@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,16 @@ public interface InternalPartitionService extends CoreService {
     long REPLICA_SYNC_RETRY_DELAY = 500L;
 
     /**
+     * Static constant for dispatching and listening migration events
+     */
+    String MIGRATION_EVENT_TOPIC = ".migration";
+
+    /**
+     * Static constant for dispatching and listening internal partition lost events
+     */
+    String PARTITION_LOST_EVENT_TOPIC = ".partitionLost";
+
+    /**
      * Gets the owner of the partition if it's set.
      * Otherwise it will trigger partition assignment.
      *
@@ -51,7 +61,7 @@ public interface InternalPartitionService extends CoreService {
      * @return owner of partition
      * @throws InterruptedException
      */
-    Address getPartitionOwnerOrWait(int partitionId) throws InterruptedException;
+    Address getPartitionOwnerOrWait(int partitionId);
 
     /**
      * Returns the InternalPartition for a given partitionId.
@@ -124,6 +134,10 @@ public interface InternalPartitionService extends CoreService {
 
     boolean removeMigrationListener(String registrationId);
 
+    String addPartitionLostListener(PartitionLostListener partitionLostListener);
+
+    boolean removePartitionLostListener(String registrationId);
+
     Member getMember(Address address);
 
     long getMigrationQueueSize();
@@ -168,4 +182,10 @@ public interface InternalPartitionService extends CoreService {
 
     boolean hasOnGoingMigrationLocal();
 
+    /**
+     * Check if this node is the owner of a  partition
+     * @param partitionId
+     * @return true if it owns the partition. false if it doesn't or partition hasn't been assigned yet.
+     */
+    boolean isPartitionOwner(int partitionId);
 }

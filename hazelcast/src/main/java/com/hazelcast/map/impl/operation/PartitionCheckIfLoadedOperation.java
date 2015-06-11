@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,40 @@
 
 package com.hazelcast.map.impl.operation;
 
+import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.RecordStore;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.spi.PartitionAwareOperation;
+import com.hazelcast.spi.ReadonlyOperation;
 
-public class PartitionCheckIfLoadedOperation extends AbstractMapOperation implements PartitionAwareOperation {
+import java.io.IOException;
 
+public class PartitionCheckIfLoadedOperation extends AbstractMapOperation implements PartitionAwareOperation, ReadonlyOperation {
 
     private boolean isFinished;
+    private boolean doLoad;
+
+    public PartitionCheckIfLoadedOperation() {
+    }
 
     public PartitionCheckIfLoadedOperation(String name) {
         super(name);
     }
 
-    public PartitionCheckIfLoadedOperation() {
+    public PartitionCheckIfLoadedOperation(String name, boolean doLoad) {
+        super(name);
+        this.doLoad = doLoad;
     }
 
+    @Override
     public void run() {
-        RecordStore recordStore = mapService.getMapServiceContext().getRecordStore(getPartitionId(), name);
+        MapServiceContext mapServiceContext = mapService.getMapServiceContext();
+        RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), name);
         isFinished = recordStore.isLoaded();
+        if (doLoad) {
+            recordStore.maybeDoInitialLoad();
+        }
     }
 
     @Override
@@ -41,4 +57,15 @@ public class PartitionCheckIfLoadedOperation extends AbstractMapOperation implem
         return isFinished;
     }
 
+    @Override
+    protected void writeInternal(ObjectDataOutput out) throws IOException {
+        super.writeInternal(out);
+        out.writeBoolean(doLoad);
+    }
+
+    @Override
+    protected void readInternal(ObjectDataInput in) throws IOException {
+        super.readInternal(in);
+        doLoad = in.readBoolean();
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,10 +87,15 @@ public final class CompletedFuture<V> implements ICompletableFuture<V> {
         executor.execute(new Runnable() {
             @Override
             public void run() {
-                if (value instanceof Throwable) {
-                    callback.onFailure((Throwable) value);
+                Object object = value;
+                if (object instanceof Data) {
+                    object = serializationService.toObject(object);
+                }
+
+                if (object instanceof Throwable) {
+                    callback.onFailure((Throwable) object);
                 } else {
-                    callback.onResponse((V) value);
+                    callback.onResponse((V) object);
                 }
             }
         });

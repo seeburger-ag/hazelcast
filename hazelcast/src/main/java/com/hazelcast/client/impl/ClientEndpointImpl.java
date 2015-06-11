@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,21 +20,19 @@ import com.hazelcast.client.ClientEndpoint;
 import com.hazelcast.client.impl.client.ClientPrincipal;
 import com.hazelcast.client.impl.exceptionconverters.ClientExceptionConverter;
 import com.hazelcast.client.impl.exceptionconverters.ClientExceptionConverters;
+import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.core.Client;
 import com.hazelcast.core.ClientType;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.Connection;
-import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.DefaultData;
 import com.hazelcast.nio.tcp.TcpIpConnection;
 import com.hazelcast.security.Credentials;
 import com.hazelcast.spi.EventService;
 import com.hazelcast.transaction.TransactionContext;
 import com.hazelcast.transaction.TransactionException;
-import com.hazelcast.transaction.impl.Transaction;
-import com.hazelcast.transaction.impl.TransactionAccessor;
-import com.hazelcast.transaction.impl.TransactionManagerServiceImpl;
+import com.hazelcast.transaction.impl.xa.XATransactionContextImpl;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
@@ -46,8 +44,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
-import static com.hazelcast.transaction.impl.Transaction.State.PREPARED;
 
 /**
  * The {@link com.hazelcast.client.ClientEndpoint} and {@link com.hazelcast.core.Client} implementation.
@@ -67,7 +63,7 @@ public final class ClientEndpointImpl implements Client, ClientEndpoint {
     private Credentials credentials;
     private volatile boolean authenticated;
 
-    ClientEndpointImpl(ClientEngineImpl clientEngine, Connection conn) {
+    public ClientEndpointImpl(ClientEngineImpl clientEngine, Connection conn) {
         this.clientEngine = clientEngine;
         this.conn = conn;
         if (conn instanceof TcpIpConnection) {
@@ -122,6 +118,7 @@ public final class ClientEndpointImpl implements Client, ClientEndpoint {
         clientEngine.addOwnershipMapping(principal.getUuid(), principal.getOwnerUuid());
     }
 
+    @Override
     public boolean isAuthenticated() {
         return authenticated;
     }
@@ -172,6 +169,7 @@ public final class ClientEndpointImpl implements Client, ClientEndpoint {
         return transactionContext;
     }
 
+    @Override
     public Credentials getCredentials() {
         return credentials;
     }
@@ -230,19 +228,15 @@ public final class ClientEndpointImpl implements Client, ClientEndpoint {
             lc.logout();
         }
         for (TransactionContext context : transactionContextMap.values()) {
-            Transaction transaction = TransactionAccessor.getTransaction(context);
-            if (context.isXAManaged() && transaction.getState() == PREPARED) {
-                TransactionManagerServiceImpl transactionManager =
-                        (TransactionManagerServiceImpl) clientEngine.getTransactionManagerService();
-                transactionManager.addTxBackupLogForClientRecovery(transaction);
-            } else {
-                try {
-                    context.rollbackTransaction();
-                } catch (HazelcastInstanceNotActiveException e) {
-                    getLogger().finest(e);
-                } catch (Exception e) {
-                    getLogger().warning(e);
-                }
+            if (context instanceof XATransactionContextImpl) {
+                continue;
+            }
+            try {
+                context.rollbackTransaction();
+            } catch (HazelcastInstanceNotActiveException e) {
+                getLogger().finest(e);
+            } catch (Exception e) {
+                getLogger().warning(e);
             }
         }
         authenticated = false;
@@ -266,8 +260,14 @@ public final class ClientEndpointImpl implements Client, ClientEndpoint {
         clientEngine.sendResponse(this, null, clientResponseObject, callId, isError, false);
     }
 
+    public void sendClientMessage(ClientMessage clientMessage) {
+        Connection conn = this.getConnection();
+        //TODO framing not implemented yet, should be split into frames before writing to connection
+        conn.write(clientMessage);
+    }
+
     @Override
-    public void sendEvent(Data key, Object event, int callId) {
+    public void sendEvent(Object key, Object event, int callId) {
         clientEngine.sendResponse(this, key, event, callId, false, true);
     }
 

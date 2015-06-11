@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,11 @@
 
 package com.hazelcast.instance;
 
-import com.hazelcast.ascii.TextCommandService;
-import com.hazelcast.ascii.TextCommandServiceImpl;
 import com.hazelcast.client.impl.ClientEngineImpl;
-import com.hazelcast.cluster.impl.ConfigCheck;
-import com.hazelcast.cluster.impl.ClusterServiceImpl;
-import com.hazelcast.cluster.impl.JoinRequest;
 import com.hazelcast.cluster.Joiner;
+import com.hazelcast.cluster.impl.ClusterServiceImpl;
+import com.hazelcast.cluster.impl.ConfigCheck;
+import com.hazelcast.cluster.impl.JoinRequest;
 import com.hazelcast.cluster.impl.MulticastJoiner;
 import com.hazelcast.cluster.impl.MulticastService;
 import com.hazelcast.cluster.impl.NodeMulticastListener;
@@ -38,9 +36,12 @@ import com.hazelcast.core.HazelcastInstanceAware;
 import com.hazelcast.core.LifecycleListener;
 import com.hazelcast.core.MembershipListener;
 import com.hazelcast.core.MigrationListener;
+import com.hazelcast.partition.PartitionLostListener;
+import com.hazelcast.internal.ascii.TextCommandService;
+import com.hazelcast.internal.ascii.TextCommandServiceImpl;
+import com.hazelcast.internal.management.ManagementCenterService;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.LoggingServiceImpl;
-import com.hazelcast.management.ManagementCenterService;
 import com.hazelcast.nio.Address;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.ConnectionManager;
@@ -51,7 +52,7 @@ import com.hazelcast.partition.impl.InternalPartitionServiceImpl;
 import com.hazelcast.security.Credentials;
 import com.hazelcast.security.SecurityContext;
 import com.hazelcast.spi.impl.NodeEngineImpl;
-import com.hazelcast.spi.impl.ProxyServiceImpl;
+import com.hazelcast.spi.impl.proxyservice.impl.ProxyServiceImpl;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.UuidUtil;
@@ -120,21 +121,20 @@ public class Node {
 
     public final SecurityContext securityContext;
 
-    public final ThreadGroup threadGroup;
-
     private final ClassLoader configClassLoader;
 
     private final BuildInfo buildInfo;
 
     private final VersionCheck versionCheck = new VersionCheck();
 
+    private final HazelcastThreadGroup hazelcastThreadGroup;
+
     public Node(HazelcastInstanceImpl hazelcastInstance, Config config, NodeContext nodeContext) {
         this.hazelcastInstance = hazelcastInstance;
-        this.threadGroup = hazelcastInstance.threadGroup;
         this.config = config;
-        configClassLoader = config.getClassLoader();
+        this.configClassLoader = config.getClassLoader();
         this.groupProperties = new GroupProperties(config);
-        buildInfo = BuildInfoProvider.getBuildInfo();
+        this.buildInfo = BuildInfoProvider.getBuildInfo();
 
         String loggingType = groupProperties.LOGGING_TYPE.getString();
         loggingService = new LoggingServiceImpl(config.getGroupConfig().getName(), loggingType, buildInfo);
@@ -152,6 +152,8 @@ public class Node {
             localMember = new MemberImpl(address, true, UuidUtil.createMemberUuid(address), hazelcastInstance, memberAttributes);
             loggingService.setThisMember(localMember);
             logger = loggingService.getLogger(Node.class.getName());
+            hazelcastThreadGroup = new HazelcastThreadGroup(
+                    hazelcastInstance.getName(), logger, configClassLoader);
             nodeExtension = NodeExtensionFactory.create(configClassLoader);
             nodeExtension.beforeStart(this);
 
@@ -164,11 +166,9 @@ public class Node {
             clusterService = new ClusterServiceImpl(this);
             textCommandService = new TextCommandServiceImpl(this);
             nodeExtension.printNodeInfo(this);
-            versionCheck.check(this, getBuildInfo().getVersion(), buildInfo.isEnterprise());
             this.multicastService = createMulticastService(addressPicker);
             initializeListeners(config);
             joiner = nodeContext.createJoiner(this);
-
         } catch (Throwable e) {
             try {
                 serverSocketChannel.close();
@@ -176,6 +176,10 @@ public class Node {
             }
             throw ExceptionUtil.rethrow(e);
         }
+    }
+
+    public HazelcastThreadGroup getHazelcastThreadGroup() {
+        return hazelcastThreadGroup;
     }
 
     private MulticastService createMulticastService(AddressPicker addressPicker) {
@@ -196,10 +200,9 @@ public class Node {
                     // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6402758
                     if (!bindAddress.getInetAddress().isLoopbackAddress()) {
                         multicastSocket.setInterface(bindAddress.getInetAddress());
-                    }
-                    else if (multicastConfig.isLoopbackModeEnabled()) {
+                    } else if (multicastConfig.isLoopbackModeEnabled()) {
                         multicastSocket.setLoopbackMode(true);
-			            multicastSocket.setInterface(bindAddress.getInetAddress());
+                        multicastSocket.setInterface(bindAddress.getInetAddress());
                     }
                 } catch (Exception e) {
                     logger.warning(e);
@@ -247,6 +250,10 @@ public class Node {
             }
             if (listener instanceof MigrationListener) {
                 partitionService.addMigrationListener((MigrationListener) listener);
+                known = true;
+            }
+            if (listener instanceof PartitionLostListener) {
+                partitionService.addPartitionLostListener((PartitionLostListener) listener);
                 known = true;
             }
             if (listener instanceof LifecycleListener) {
@@ -298,14 +305,6 @@ public class Node {
         return hazelcastInstance.getName();
     }
 
-    public String getThreadNamePrefix(String name) {
-        return "hz." + getName() + "." + name;
-    }
-
-    public String getThreadPoolNamePrefix(String poolName) {
-        return getThreadNamePrefix(poolName) + ".thread-";
-    }
-
     public boolean joined() {
         return joined.get();
     }
@@ -331,11 +330,12 @@ public class Node {
         nodeEngine.start();
         connectionManager.start();
         if (config.getNetworkConfig().getJoin().getMulticastConfig().isEnabled()) {
-            final Thread multicastServiceThread = new Thread(hazelcastInstance.threadGroup, multicastService, getThreadNamePrefix("MulticastThread"));
+            final Thread multicastServiceThread = new Thread(
+                    hazelcastThreadGroup.getInternalThreadGroup(), multicastService, hazelcastThreadGroup.getThreadNamePrefix("MulticastThread"));
             multicastServiceThread.start();
         }
         setActive(true);
-        if (!completelyShutdown) {
+        if (!completelyShutdown && groupProperties.SHUTDOWNHOOK_ENABLED.getBoolean()) {
             logger.finest("Adding ShutdownHook");
             Runtime.getRuntime().addShutdownHook(shutdownHookThread);
         }
@@ -357,6 +357,7 @@ public class Node {
             logger.warning("ManagementCenterService could not be constructed!", e);
         }
         nodeExtension.afterStart(this);
+        versionCheck.check(this, getBuildInfo().getVersion(), buildInfo.isEnterprise());
     }
 
     public void shutdown(final boolean terminate) {
@@ -387,7 +388,8 @@ public class Node {
             setActive(false);
             setMasterAddress(null);
             try {
-                Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+                if (groupProperties.SHUTDOWNHOOK_ENABLED.getBoolean())
+                    Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
             } catch (Throwable ignored) {
             }
             versionCheck.shutdown();
@@ -413,18 +415,7 @@ public class Node {
             logger.finest("Destroying serialization service...");
             serializationService.destroy();
 
-            int numThreads = threadGroup.activeCount();
-            Thread[] threads = new Thread[numThreads * 2];
-            numThreads = threadGroup.enumerate(threads, false);
-            for (int i = 0; i < numThreads; i++) {
-                Thread thread = threads[i];
-                if (thread.isAlive()) {
-                    if (logger.isFinestEnabled()) {
-                        logger.finest("Shutting down thread " + thread.getName());
-                    }
-                    thread.interrupt();
-                }
-            }
+            hazelcastThreadGroup.destroy();
             logger.info("Hazelcast Shutdown is completed in " + (Clock.currentTimeMillis() - start) + " ms.");
         }
     }
@@ -487,9 +478,7 @@ public class Node {
             try {
                 if (isActive() && !completelyShutdown) {
                     completelyShutdown = true;
-                    if (groupProperties.SHUTDOWNHOOK_ENABLED.getBoolean()) {
-                        hazelcastInstance.getLifecycleService().terminate();
-                    }
+                    hazelcastInstance.getLifecycleService().terminate();
                 } else {
                     logger.finest(
                             "shutdown hook - we are not --> active and not completely down so we are not calling shutdown");
@@ -587,6 +576,11 @@ public class Node {
         logger.finest("This node is being set as the master");
         masterAddress = address;
         setJoined();
+        this.getClusterService().getClusterClock().
+                setClusterStartTime(Clock.currentTimeMillis());
+        this.getClusterService().setClusterId(
+                UuidUtil.createClusterUuid()
+        );
     }
 
     public Config getConfig() {
@@ -607,6 +601,7 @@ public class Node {
         return active;
     }
 
+    @Override
     public String toString() {
         return "Node[" + getName() + "]";
     }

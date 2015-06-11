@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package com.hazelcast.client.txn.proxy;
 
-import com.hazelcast.client.txn.TransactionContextProxy;
-import com.hazelcast.collection.client.TxnSetAddRequest;
-import com.hazelcast.collection.client.TxnSetRemoveRequest;
-import com.hazelcast.collection.client.TxnSetSizeRequest;
-import com.hazelcast.collection.set.SetService;
+import com.hazelcast.client.spi.ClientTransactionContext;
+import com.hazelcast.collection.impl.txnset.client.TxnSetAddRequest;
+import com.hazelcast.collection.impl.txnset.client.TxnSetRemoveRequest;
+import com.hazelcast.collection.impl.txnset.client.TxnSetSizeRequest;
+import com.hazelcast.collection.impl.set.SetService;
 import com.hazelcast.core.TransactionalSet;
 import com.hazelcast.nio.serialization.Data;
 
@@ -29,8 +29,8 @@ import com.hazelcast.nio.serialization.Data;
 */
 public class ClientTxnSetProxy<E> extends AbstractClientTxnCollectionProxy<E> implements TransactionalSet<E> {
 
-    public ClientTxnSetProxy(String name, TransactionContextProxy proxy) {
-        super(name, proxy);
+    public ClientTxnSetProxy(String name, ClientTransactionContext transactionContext) {
+        super(name, transactionContext);
     }
 
     public boolean add(E e) {

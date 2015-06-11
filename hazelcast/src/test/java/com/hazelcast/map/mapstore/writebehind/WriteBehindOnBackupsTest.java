@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,9 @@ package com.hazelcast.map.mapstore.writebehind;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.Member;
+import com.hazelcast.core.Partition;
+import com.hazelcast.core.PartitionService;
 import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.RecordStore;
@@ -28,13 +31,17 @@ import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
+import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.QuickTest;
-
-import static org.junit.Assert.assertEquals;
-
+import com.hazelcast.test.annotation.SlowTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
 
 @RunWith(HazelcastParallelClassRunner.class)
 @Category(QuickTest.class)
@@ -66,6 +73,84 @@ public class WriteBehindOnBackupsTest extends HazelcastTestSupport {
         populateMap(map, numberOfItems);
 
         assertWriteBehindQueuesEmptyOnOwnerAndOnBackups(mapName, numberOfItems, mapStore, storeBuilder.getNodes());
+    }
+
+
+    @Test
+    public void testPutTransientDoesNotStoreEntry_onBackupPartition() {
+        String mapName = randomMapName();
+        final MapStoreWithCounter mapStore = new MapStoreWithCounter<Integer, String>();
+        TestMapUsingMapStoreBuilder<Object, Object> storeBuilder = TestMapUsingMapStoreBuilder.create();
+        final IMap<Object, Object> map = storeBuilder
+                .mapName(mapName)
+                .withMapStore(mapStore)
+                .withNodeCount(2)
+                .withNodeFactory(createHazelcastInstanceFactory(2))
+                .withWriteDelaySeconds(1)
+                .withBackupCount(1)
+                .withPartitionCount(1)
+                .withBackupProcessingDelay(1)
+                .build();
+
+
+        map.putTransient(1, 1, 1, TimeUnit.DAYS);
+
+        sleepSeconds(5);
+
+        assertEquals("There should not be any store operation", 0, mapStore.countStore.get());
+    }
+
+
+    @Test
+    @Category(SlowTest.class)
+    public void testPutTransientDoesNotStoreEntry_onPromotedReplica() {
+        String mapName = randomMapName();
+        final MapStoreWithCounter mapStore = new MapStoreWithCounter<Integer, String>();
+        TestMapUsingMapStoreBuilder<String, Object> storeBuilder = TestMapUsingMapStoreBuilder.create();
+        TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
+        final IMap<String, Object> map = storeBuilder
+                .mapName(mapName)
+                .withMapStore(mapStore)
+                .withNodeCount(2)
+                .withNodeFactory(factory)
+                .withWriteDelaySeconds(5)
+                .withBackupCount(1)
+                .withPartitionCount(1)
+                .withBackupProcessingDelay(1)
+                .build();
+
+
+        String key = UUID.randomUUID().toString();
+
+        map.putTransient(key, 1, 1, TimeUnit.DAYS);
+
+        killKeyOwner(key, storeBuilder);
+
+        sleepSeconds(10);
+
+        assertEquals("There should not be any store operation on promoted replica", 0, mapStore.countStore.get());
+    }
+
+    private void killKeyOwner(String key, TestMapUsingMapStoreBuilder<String, Object> storeBuilder) {
+        HazelcastInstance[] nodes = storeBuilder.getNodes();
+        HazelcastInstance ownerNode = getOwnerNode(key, nodes);
+        ownerNode.shutdown();
+    }
+
+    private HazelcastInstance getOwnerNode(String key, HazelcastInstance[] nodes) {
+        PartitionService partitionService = nodes[0].getPartitionService();
+        Partition partition = partitionService.getPartition(key);
+        Member owner = partition.getOwner();
+
+        for (int i = 0; i < nodes.length; i++) {
+            HazelcastInstance node = nodes[i];
+            Member localMember = node.getCluster().getLocalMember();
+            if (localMember.equals(owner)) {
+                return node;
+            }
+        }
+
+        throw new IllegalStateException("This should not be happen...");
     }
 
     private void assertWriteBehindQueuesEmptyOnOwnerAndOnBackups(final String mapName,

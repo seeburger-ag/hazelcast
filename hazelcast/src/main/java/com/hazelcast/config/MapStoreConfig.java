@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package com.hazelcast.config;
 
-import com.hazelcast.util.ValidationUtil;
-
 import java.util.Properties;
+
+import static com.hazelcast.util.Preconditions.isNotNull;
 
 /**
  * Contains the configuration for a Map Store.
@@ -90,7 +90,7 @@ public class MapStoreConfig {
     /**
      * Returns the name of the MapStore implementation class
      *
-     * @return the name of the class
+     * @return the name of the MapStore implementation class
      */
     public String getClassName() {
         return className;
@@ -99,7 +99,7 @@ public class MapStoreConfig {
     /**
      * Sets the name for the MapStore implementation class
      *
-     * @param className the name of the MapStore implementation class to set
+     * @param className the name to set for the MapStore implementation class
      */
     public MapStoreConfig setClassName(String className) {
         this.className = className;
@@ -109,7 +109,7 @@ public class MapStoreConfig {
     /**
      * Returns the name of the MapStoreFactory implementation class
      *
-     * @return the name of the class
+     * @return the name of the MapStoreFactory implementation class
      */
     public String getFactoryClassName() {
         return factoryClassName;
@@ -118,7 +118,7 @@ public class MapStoreConfig {
     /**
      * Sets the name for the MapStoreFactory implementation class
      *
-     * @param factoryClassName the name of the MapStoreFactory implementation class to set
+     * @param factoryClassName the name to set for the MapStoreFactory implementation class
      */
     public MapStoreConfig setFactoryClassName(String factoryClassName) {
         this.factoryClassName = factoryClassName;
@@ -128,7 +128,7 @@ public class MapStoreConfig {
     /**
      * Returns the number of seconds to delay the store writes.
      *
-     * @return the number of delay seconds.
+     * @return the number of seconds to delay the store writes.
      */
     public int getWriteDelaySeconds() {
         return writeDelaySeconds;
@@ -139,7 +139,7 @@ public class MapStoreConfig {
      * <p/>
      * Default value is {@value #DEFAULT_WRITE_DELAY_SECONDS}.
      *
-     * @param writeDelaySeconds the number of seconds to delay.
+     * @param writeDelaySeconds the number of seconds to delay before writing the dirty records
      */
     public MapStoreConfig setWriteDelaySeconds(int writeDelaySeconds) {
         this.writeDelaySeconds = writeDelaySeconds;
@@ -149,7 +149,7 @@ public class MapStoreConfig {
     /**
      * Returns the number of operations to be included in each batch processing round.
      *
-     * @return write batch size.
+     * @return write batch size: the number of operations to be included in each batch processing round.
      */
     public int getWriteBatchSize() {
         return writeBatchSize;
@@ -160,7 +160,7 @@ public class MapStoreConfig {
      * <p/>
      * Default value is {@value #DEFAULT_WRITE_BATCH_SIZE}.
      *
-     * @param writeBatchSize the number of operations to be included.
+     * @param writeBatchSize the number of operations to be included in each batch processing round.
      */
     public MapStoreConfig setWriteBatchSize(int writeBatchSize) {
         if (writeBatchSize < 1) {
@@ -173,7 +173,7 @@ public class MapStoreConfig {
     /**
      * Returns if this configuration is enabled
      *
-     * @return true if enabled, false otherwise
+     * @return true if this configuration is enabled, false otherwise
      */
     public boolean isEnabled() {
         return enabled;
@@ -182,7 +182,7 @@ public class MapStoreConfig {
     /**
      * Enables and disables this configuration
      *
-     * @param enabled
+     * @param enabled true to enables this configuration, false to disable
      */
     public MapStoreConfig setEnabled(boolean enabled) {
         this.enabled = enabled;
@@ -192,7 +192,7 @@ public class MapStoreConfig {
     /**
      * Sets the map store implementation object
      *
-     * @param implementation implementation object
+     * @param implementation the map store implementation object to set
      * @return this MapStoreConfig instance
      */
     public MapStoreConfig setImplementation(Object implementation) {
@@ -201,18 +201,18 @@ public class MapStoreConfig {
     }
 
     /**
-     * Returns the map store implementation object
+     * Returns the map store implementation object.
      *
-     * @return map store implementation object
+     * @return the map store implementation object
      */
     public Object getImplementation() {
         return implementation;
     }
 
     /**
-     * Sets the map store factory implementation object
+     * Sets the map store factory implementation object.
      *
-     * @param factoryImplementation factory implementation object
+     * @param factoryImplementation the factory implementation object
      * @return this MapStoreConfig instance
      */
     public MapStoreConfig setFactoryImplementation(Object factoryImplementation) {
@@ -221,9 +221,9 @@ public class MapStoreConfig {
     }
 
     /**
-     * Returns the map store factory implementation object
+     * Returns the map store factory implementation object.
      *
-     * @return map store factory implementation object
+     * @return the map store factory implementation object
      */
     public Object getFactoryImplementation() {
         return factoryImplementation;
@@ -234,36 +234,51 @@ public class MapStoreConfig {
         return this;
     }
 
+    /**
+     * Returns the given property
+     *
+     * @return the given property
+     */
     public String getProperty(String name) {
         return properties.getProperty(name);
     }
 
+    /**
+     * Returns all the properties
+     *
+     * @return all the properties
+     */
     public Properties getProperties() {
         return properties;
     }
 
+    /**
+     * Sets the properties
+     *
+     * @param properties the properties to be set
+     * @return this MapStoreConfig
+     */
     public MapStoreConfig setProperties(Properties properties) {
-        ValidationUtil.isNotNull(properties, "properties");
-        this.properties = properties;
+        this.properties = isNotNull(properties, "properties");
         return this;
     }
 
     /**
-     * Returns initial load mode
+     * Returns the initial load mode
      *
-     * @return initial load mode object
+     * @return the initial load mode object
      */
     public InitialLoadMode getInitialLoadMode() {
         return initialLoadMode;
     }
 
     /**
-     * Sets initial load mode
+     * Sets the initial load mode
      * <p/>
      * LAZY: Default load mode where load is async
      * EAGER: load mode where load is blocked till all partitions are loaded
      *
-     * @param initialLoadMode initial load mode object
+     * @param initialLoadMode the initial load mode object
      */
     public MapStoreConfig setInitialLoadMode(InitialLoadMode initialLoadMode) {
         this.initialLoadMode = initialLoadMode;

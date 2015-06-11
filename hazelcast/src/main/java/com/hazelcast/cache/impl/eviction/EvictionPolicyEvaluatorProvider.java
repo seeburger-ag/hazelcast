@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,11 +45,11 @@ public final class EvictionPolicyEvaluatorProvider {
     /**
      * Gets the {@link EvictionPolicyEvaluator} implementation specified with <code>evictionPolicy</code>.
      *
-     * @param evictionConfig {@link EvictionConfig} for requested {@link EvictionPolicyEvaluator} implementation
+     * @param evictionConfig {@link EvictionConfiguration} for requested {@link EvictionPolicyEvaluator} implementation
      *
      * @return the requested {@link EvictionPolicyEvaluator} implementation
      */
-    public static EvictionPolicyEvaluator getEvictionPolicyEvaluator(EvictionConfig evictionConfig) {
+    public static EvictionPolicyEvaluator getEvictionPolicyEvaluator(EvictionConfiguration evictionConfig) {
         if (evictionConfig == null) {
             return null;
         }

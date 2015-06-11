@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+  ~ Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@
 
     <vendor-name>Hazelcast.com</vendor-name>
     <eis-type>Hazelcast</eis-type>
-    <resourceadapter-version>3.4.3.SEE1-SNAPSHOT</resourceadapter-version>
+    <resourceadapter-version>3.5.1.SEE1-SNAPSHOT</resourceadapter-version>
 
     <license>
-        <description>Copyright (c) 2008-2013, Hazelcast, Inc.</description>
+        <description>Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.</description>
         <license-required>true</license-required>
     </license>
     <resourceadapter>
@@ -46,17 +46,17 @@
 					<config-property-type>java.lang.String</config-property-type>
 					<config-property-value>FACTORY_INIT</config-property-value>
 				</config-property>
-                
+
                 <config-property>
                 	<description>Shows a stacktrace for all logged connectionTracingEvents</description>
                 	<config-property-name>connectionTracingDetail</config-property-name>
                 	<config-property-type>java.lang.Boolean</config-property-type>
                 	<config-property-value>false</config-property-value>
                 </config-property>
-                
+
                 <connectionfactory-interface>javax.resource.cci.ConnectionFactory</connectionfactory-interface>
                 <connectionfactory-impl-class>com.hazelcast.jca.ConnectionFactoryImpl</connectionfactory-impl-class>
-                
+
                 <connection-interface>javax.resource.cci.Connection</connection-interface>
                 <connection-impl-class>com.hazelcast.jca.HazelcastConnectionImpl</connection-impl-class>
             </connection-definition>

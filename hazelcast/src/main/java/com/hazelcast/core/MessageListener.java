@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,11 @@ import java.util.EventListener;
 
 /**
  * Message listener for {@link ITopic}.
+ *
+ * Provided that a MessageListener is not registered twice, a MessageListener will never be called concurrently. So there
+ * is no need to provide thread-safety on internal state in the MessageListener. Also there is no need to enforce safe
+ * publication, the ITopic is responsible for the memory consistency effects. In other words, there is no need to make
+ * internal fields of the MessageListener volatile or access them using synchronized blocks.
  *
  * @param <E> message
  */

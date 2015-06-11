@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,10 +31,11 @@ public interface EvictionStrategy<A, E extends Evictable, S extends EvictableSto
      * @param evictionChecker           {@link EvictionChecker} to make a decision about if eviction is
      *                                  required or not. If you want evict anyway,
      *                                  you can use {@link EvictionChecker#EVICT_ALWAYS}
+     * @param evictionListener          {@link EvictionListener} to listen evicted entries
      *
      * @return evicted entry count
      */
     int evict(S evictableStore, EvictionPolicyEvaluator<A, E> evictionPolicyEvaluator,
-            EvictionChecker evictionChecker);
+            EvictionChecker evictionChecker, EvictionListener<A, E> evictionListener);
 
 }

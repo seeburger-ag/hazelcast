@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package com.hazelcast.spi;
 
 /**
- * A service for object where one can wait on, like ICondition or a ILock when a thread needs
+ * A service for an object where one can wait on, like ICondition or ILock when a thread needs
  * to wait for a lock to be released.
  */
 public interface WaitNotifyService {

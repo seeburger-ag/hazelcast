@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 package com.hazelcast.client.txn.proxy;
 
-import com.hazelcast.client.txn.TransactionContextProxy;
+import com.hazelcast.client.spi.ClientTransactionContext;
 
 /**
  * @ali 9/4/13
  */
 public abstract class AbstractClientTxnCollectionProxy<E> extends ClientTxnProxy {
 
-    protected AbstractClientTxnCollectionProxy(String name, TransactionContextProxy proxy) {
-        super(name, proxy);
+    protected AbstractClientTxnCollectionProxy(String name, ClientTransactionContext transactionContext) {
+        super(name, transactionContext);
     }
 
     void onDestroy() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,15 @@ package com.hazelcast.instance;
 
 import com.hazelcast.cache.impl.CacheService;
 import com.hazelcast.cache.impl.ICacheService;
+import com.hazelcast.client.impl.protocol.MessageTaskFactory;
+import com.hazelcast.client.impl.protocol.MessageTaskFactoryImpl;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.SerializationConfig;
 import com.hazelcast.core.PartitioningStrategy;
+import com.hazelcast.internal.storage.DataRef;
+import com.hazelcast.internal.storage.Storage;
 import com.hazelcast.logging.ILogger;
+import com.hazelcast.map.impl.MapService;
 import com.hazelcast.memory.DefaultMemoryStats;
 import com.hazelcast.memory.MemoryStats;
 import com.hazelcast.nio.ClassLoaderUtil;
@@ -39,11 +44,14 @@ import com.hazelcast.nio.tcp.SocketChannelWrapperFactory;
 import com.hazelcast.nio.tcp.TcpIpConnection;
 import com.hazelcast.partition.strategy.DefaultPartitioningStrategy;
 import com.hazelcast.security.SecurityContext;
-import com.hazelcast.storage.DataRef;
-import com.hazelcast.storage.Storage;
+import com.hazelcast.spi.NodeEngine;
+import com.hazelcast.spi.impl.NodeEngineImpl;
+import com.hazelcast.util.ConstructorFunction;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.wan.WanReplicationService;
 import com.hazelcast.wan.impl.WanReplicationServiceImpl;
+
+import static com.hazelcast.map.impl.MapServiceConstructor.getDefaultMapServiceConstructor;
 
 public class DefaultNodeExtension implements NodeExtension {
 
@@ -71,7 +79,7 @@ public class DefaultNodeExtension implements NodeExtension {
         }
         systemLogger.info("Hazelcast " + buildInfo.getVersion()
                 + " (" + build + ") starting at " + node.getThisAddress());
-        systemLogger.info("Copyright (C) 2008-2014 Hazelcast.com");
+        systemLogger.info("Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.");
     }
 
     @Override
@@ -129,8 +137,16 @@ public class DefaultNodeExtension implements NodeExtension {
             return (T) new WanReplicationServiceImpl(node);
         } else if (ICacheService.class.isAssignableFrom(clazz)) {
             return (T) new CacheService();
+        } else if (MapService.class.isAssignableFrom(clazz)) {
+            return createMapService();
         }
         throw new IllegalArgumentException("Unknown service class: " + clazz);
+    }
+
+    <T> T createMapService() {
+        ConstructorFunction<NodeEngine, MapService> constructor = getDefaultMapServiceConstructor();
+        NodeEngineImpl nodeEngine = node.getNodeEngine();
+        return (T) constructor.createNew(nodeEngine);
     }
 
     @Override
@@ -155,6 +171,11 @@ public class DefaultNodeExtension implements NodeExtension {
     }
 
     @Override
+    public MessageTaskFactory createMessageTaskFactory(Node node) {
+        return new MessageTaskFactoryImpl(node);
+    }
+
+    @Override
     public void onThreadStart(Thread thread) {
     }
 
@@ -170,6 +191,10 @@ public class DefaultNodeExtension implements NodeExtension {
     @Override
     public void destroy() {
         logger.info("Destroying node NodeExtension.");
+    }
+
+    @Override
+    public void beforeJoin() {
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 package com.hazelcast.client.spi;
 
 import com.hazelcast.core.Client;
+import com.hazelcast.core.Member;
 import com.hazelcast.core.MembershipListener;
-import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.nio.Address;
 
 import java.util.Collection;
@@ -28,22 +28,73 @@ import java.util.Collection;
  */
 public interface ClientClusterService {
 
+    /**
+     * @return Client interface representing local client
+     */
     Client getLocalClient();
 
-    MemberImpl getMember(Address address);
+    /**
+     * Gets the member for the given address.
+     *
+     * @param address the address of the member to lookup.
+     * @return the found member, or null if not found. If address is null, null is returned.
+     */
+    Member getMember(Address address);
 
-    MemberImpl getMember(String uuid);
+    /**
+     * Gets the member with the given uuid.
+     *
+     * @param uuid the uuid of the member
+     * @return the found member, or null if not found. If uuid is null, null is returned.
+     */
+    Member getMember(String uuid);
 
-    Collection<MemberImpl> getMemberList();
+    /**
+     * Gets the collection of members.
+     *
+     * @return the collection of member. Null will never be returned.
+     */
+    Collection<Member> getMemberList();
 
+    /**
+     * Returns the address of the master member.
+     *
+     * @return the address of the master member. Could be null if the master is not yet known.
+     */
     Address getMasterAddress();
 
+    /**
+     * Gets the current number of members.
+     *
+     * @return the current number of members.
+     */
     int getSize();
 
+    /**
+     * Returns the cluster-time.
+     * <p/>
+     *
+     * @return the cluster-time.
+     */
     long getClusterTime();
 
+    /**
+     * @param listener to be registered
+     * @return registration id
+     */
     String addMembershipListener(MembershipListener listener);
 
+    /**
+     * @param registrationId of listener
+     * @return true if successfully removed, false otherwise
+     */
     boolean removeMembershipListener(String registrationId);
 
+    /**
+     * Owner connection is opened to owner member of the client in the cluster.
+     * If owner member dies, other members of the cluster assumes this client dead.
+     *
+     * @return address of owner connection
+     */
+    Address getOwnerConnectionAddress();
 }

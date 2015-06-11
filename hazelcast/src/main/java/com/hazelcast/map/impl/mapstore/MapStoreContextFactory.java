@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,9 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.MapStoreWrapper;
-import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.SerializationService;
 
 import java.util.Collections;
-import java.util.Map;
 
 import static com.hazelcast.map.impl.mapstore.MapStoreManagers.emptyMapStoreManager;
 
@@ -58,11 +56,6 @@ public final class MapStoreContextFactory {
         }
 
         @Override
-        public Map<Data, Object> getInitialKeys() {
-            return Collections.emptyMap();
-        }
-
-        @Override
         public MapStoreWrapper getMapStoreWrapper() {
             // keep it null. do not throw exception.
             return null;
@@ -70,12 +63,10 @@ public final class MapStoreContextFactory {
 
         @Override
         public void start() {
-
         }
 
         @Override
         public void stop() {
-
         }
 
         @Override
@@ -109,7 +100,13 @@ public final class MapStoreContextFactory {
         }
 
         @Override
-        public void waitInitialLoadFinish() {
+        public Iterable<Object> loadAllKeys() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public boolean isMapLoader() {
+            return false;
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,10 @@ import com.hazelcast.nio.serialization.PortableFactory;
 import com.hazelcast.nio.serialization.PortableReader;
 import com.hazelcast.nio.serialization.PortableWriter;
 import com.hazelcast.security.UsernamePasswordCredentials;
+import com.hazelcast.test.AssertTask;
 import com.hazelcast.test.HazelcastSerialClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
+import com.hazelcast.test.annotation.NightlyTest;
 import com.hazelcast.test.annotation.QuickTest;
 import org.junit.After;
 import org.junit.Before;
@@ -180,13 +182,13 @@ public class ClientRegressionTest
         lock.unlock();
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testOperationRedo() throws Exception {
         final HazelcastInstance hz1 = Hazelcast.newHazelcastInstance();
-        final HazelcastInstance hz2 = Hazelcast.newHazelcastInstance();
+        Hazelcast.newHazelcastInstance();
 
         ClientConfig clientConfig = new ClientConfig();
-        clientConfig.setRedoOperation(true);
+        clientConfig.getNetworkConfig().setRedoOperation(true);
         HazelcastInstance client = HazelcastClient.newHazelcastClient(clientConfig);
 
         final Thread thread = new Thread() {
@@ -568,6 +570,7 @@ public class ClientRegressionTest
         final HazelcastInstance instance = Hazelcast.newHazelcastInstance();
 
         final ClientConfig clientConfig = new ClientConfig();
+        clientConfig.getNetworkConfig().setConnectionAttemptLimit(Integer.MAX_VALUE);
         final String mapName = randomMapName();
 
         NearCacheConfig nearCacheConfig = new NearCacheConfig();
@@ -586,14 +589,22 @@ public class ClientRegressionTest
         instance.shutdown();
         Hazelcast.newHazelcastInstance();
 
-        assertEquals(null, map.get("a"));
+        assertTrueEventually(new AssertTask() {
+            @Override
+            public void run() throws Exception {
+                assertEquals(null, map.get("a"));
+            }
+        });
+
     }
 
+    @Category(NightlyTest.class)
     @Test
     public void testLock_WhenDummyClientAndOwnerNodeDiesTogether() throws InterruptedException {
         testLock_WhenClientAndOwnerNodeDiesTogether(false);
     }
 
+    @Category(NightlyTest.class)
     @Test
     public void testLock_WhenSmartClientAndOwnerNodeDiesTogether() throws InterruptedException {
         testLock_WhenClientAndOwnerNodeDiesTogether(true);
@@ -610,7 +621,6 @@ public class ClientRegressionTest
         for (int i = 0; i < tryCount; i++) {
             final HazelcastInstance instance = Hazelcast.newHazelcastInstance();
             final HazelcastInstance client = HazelcastClient.newHazelcastClient(clientConfig);
-
             final ILock lock = client.getLock("lock");
             assertTrue(lock.tryLock(1, TimeUnit.MINUTES));
             client.getLifecycleService().terminate(); //with client is dead, lock should be released.
@@ -734,7 +744,6 @@ public class ClientRegressionTest
         client.shutdown();
     }
 
-
     @Test
     public void testClientReconnect_thenCheckRequestsAreRetriedWithoutException() throws Exception {
         final HazelcastInstance hazelcastInstance = Hazelcast.newHazelcastInstance();
@@ -762,7 +771,7 @@ public class ClientRegressionTest
         //retry to connect to cluster forever(never shutdown the client)
         clientConfig.getNetworkConfig().setConnectionAttemptLimit(Integer.MAX_VALUE);
         //Retry all requests forever(until client is shutdown)
-        clientConfig.setProperty(ClientProperties.PROP_REQUEST_RETRY_COUNT, String.valueOf(Integer.MAX_VALUE));
+        clientConfig.setProperty(ClientProperties.PROP_INVOCATION_TIMEOUT_SECONDS, String.valueOf(Integer.MAX_VALUE));
         HazelcastInstance client = HazelcastClient.newHazelcastClient(clientConfig);
 
         IMap<Object, Object> map = client.getMap(randomMapName());
@@ -782,13 +791,13 @@ public class ClientRegressionTest
 
     @Test
     public void testClusterShutdown_thenCheckOperationsNotHanging() throws Exception {
-        final HazelcastInstance hazelcastInstance = Hazelcast.newHazelcastInstance();
+        HazelcastInstance hazelcastInstance = Hazelcast.newHazelcastInstance();
 
         ClientConfig clientConfig = new ClientConfig();
         //Retry all requests
         clientConfig.getNetworkConfig().setRedoOperation(true);
         //Retry all requests forever(until client is shutdown)
-        clientConfig.setProperty(ClientProperties.PROP_REQUEST_RETRY_COUNT, String.valueOf(Integer.MAX_VALUE));
+        clientConfig.setProperty(ClientProperties.PROP_INVOCATION_TIMEOUT_SECONDS, String.valueOf(Integer.MAX_VALUE));
         HazelcastInstance client = HazelcastClient.newHazelcastClient(clientConfig);
 
         final IMap<Object, Object> map = client.getMap(randomMapName());

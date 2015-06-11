@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -144,6 +144,11 @@ public final class AuthenticationRequest extends CallableClientRequest {
                     operationService.send(op, member.getAddress());
                 }
             }
+        }
+
+        if (clientEngine.getClusterService().getMember(principal.getOwnerUuid()) == null) {
+            return new AuthenticationException("Invalid owner-uuid: " + principal.getOwnerUuid()
+                    + ", it's not member of this cluster!");
         }
 
         endpoint.authenticated(principal, credentials, ownerConnection);

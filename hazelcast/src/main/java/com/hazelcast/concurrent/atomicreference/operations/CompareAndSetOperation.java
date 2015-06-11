@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package com.hazelcast.concurrent.atomicreference.operations;
 
 import com.hazelcast.concurrent.atomicreference.AtomicReferenceDataSerializerHook;
-import com.hazelcast.concurrent.atomicreference.ReferenceWrapper;
+import com.hazelcast.concurrent.atomicreference.AtomicReferenceContainer;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.Data;
@@ -42,14 +42,24 @@ public class CompareAndSetOperation extends AtomicReferenceBackupAwareOperation 
 
     @Override
     public void run() throws Exception {
-        ReferenceWrapper reference = getReference();
-        returnValue = reference.compareAndSet(expect, update);
+        AtomicReferenceContainer atomicReferenceContainer = getReferenceContainer();
+        returnValue = atomicReferenceContainer.compareAndSet(expect, update);
         shouldBackup = !returnValue;
     }
 
     @Override
     public Object getResponse() {
         return returnValue;
+    }
+
+    @Override
+    public boolean shouldBackup() {
+        return shouldBackup;
+    }
+
+    @Override
+    public Operation getBackupOperation() {
+        return new SetBackupOperation(name, update);
     }
 
     @Override
@@ -69,16 +79,6 @@ public class CompareAndSetOperation extends AtomicReferenceBackupAwareOperation 
         super.readInternal(in);
         expect = in.readData();
         update = in.readData();
-    }
-
-    @Override
-    public boolean shouldBackup() {
-        return shouldBackup;
-    }
-
-    @Override
-    public Operation getBackupOperation() {
-        return new SetBackupOperation(name, update);
     }
 }
 

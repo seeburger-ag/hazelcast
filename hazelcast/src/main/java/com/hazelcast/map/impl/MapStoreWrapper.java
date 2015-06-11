@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ import com.hazelcast.core.MapLoader;
 import com.hazelcast.core.MapLoaderLifecycleSupport;
 import com.hazelcast.core.MapStore;
 import com.hazelcast.core.PostProcessingMapStore;
+import com.hazelcast.query.impl.getters.ReflectionHelper;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 @SuppressWarnings("unchecked")
 public class MapStoreWrapper implements MapStore, MapLoaderLifecycleSupport {
@@ -77,10 +77,11 @@ public class MapStoreWrapper implements MapStore, MapLoaderLifecycleSupport {
         return (mapStore != null);
     }
 
-    private boolean isMapLoader() {
+    public boolean isMapLoader() {
         return (mapLoader != null);
     }
 
+    @Override
     public void delete(Object key) {
         if (isMapStore()) {
             mapStore.delete(key);
@@ -111,9 +112,16 @@ public class MapStoreWrapper implements MapStore, MapLoaderLifecycleSupport {
     }
 
     @Override
-    public Set loadAllKeys() {
+    public Iterable<Object> loadAllKeys() {
         if (isMapLoader()) {
-            return mapLoader.loadAllKeys();
+            Iterable<Object> allKeys;
+            try {
+                allKeys = mapLoader.loadAllKeys();
+            } catch (AbstractMethodError e) {
+                // Invoke reflectively to preserve backwards binary compatibility. Removable in v4.x
+                allKeys = ReflectionHelper.invokeMethod(mapLoader, "loadAllKeys");
+            }
+            return allKeys;
         }
         return null;
     }

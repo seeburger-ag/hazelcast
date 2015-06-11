@@ -7,7 +7,8 @@ src/WhatsNew.md
 	src/DocumentRevisionHistory.md
 src/GettingStarted.md
 		src/InstallingHZEnterprise.md
-	src/StartingClusterClient.md
+	src/StartingInstanceClient.md
+		src/DeployingOnAmazonEC2.md
 	src/ConfiguringHazelcast.md
 src/Overview.md
 	src/WhyHazelcast.md
@@ -28,7 +29,7 @@ src/Distributed_Data_Structures.md
 		src/Map-NearCache.md
 		src/Map-Locks.md
 		src/Map-EntryStatistics.md
-		src/Map-EntryListener.md
+		src/Map-MapListener.md
 		src/Map-Interceptors.md
 	src/Queue.md
 		src/SampleQueueCode.md
@@ -38,6 +39,7 @@ src/Distributed_Data_Structures.md
 	src/MultiMap.md
 	src/Set.md
 	src/List.md
+#	src/RingBuffer.md
 	src/Topic.md
 		src/TopicStatistics.md
 		src/TopicInternals.md
@@ -53,7 +55,7 @@ src/Distributed_Data_Structures.md
         src/replicatedmap/Considerations.md
         src/replicatedmap/BreakageMapContract.md
         src/replicatedmap/TechnicalDesign.md
-        src/replicatedmap/InMemoryFormat.md
+        src/replicatedmap/Configuration.md
         src/replicatedmap/EntryListener.md
 src/DistributedEvents.md
 	src/GlobalEventConfiguration.md
@@ -119,6 +121,7 @@ src/JCache.md
 	src/JCache-CustomExpiryPolicy.md
 	src/JCache-Eviction.md
 #	src/JCache-Eviction-SPI.md
+	src/JCache-NearCache.md
 	src/JCache-AdditionalMethods.md
 	src/JCache-BackupAwareEP.md
 	src/JCache-SpecCompliance.md
@@ -129,8 +132,11 @@ src/IntegratedClustering.md
 		src/JettySessionReplication.md
 	src/SpringIntegration.md
 src/Storage.md
-src/Clients.md
-	src/JavaClient.md
+src/HazelcastJavaClient/JavaClient.md
+src/HazelcastJavaClient/Overview.md
+src/HazelcastJavaClient/Configuration.md
+src/HazelcastJavaClient/SystemProperties.md
+src/OtherClientImplementations.md
 	src/CPlusClient.md
 	src/CSharpClient.md
 	src/RestClient.md
@@ -149,7 +155,8 @@ src/Management.md
 	src/MonitoringWithJMX.md
 	src/ClusterUtilities.md
 		src/MemberAttributes.md
-		src/PartitionService.md
+		src/ClusterMemberSafetyCheck.md
+		src/ClusterQuorum.md
 	src/ManagementCenter.md
 	src/ClusteredJMX.md
 	src/ClusteredREST.md
@@ -167,11 +174,12 @@ src/Security.md
 	src/ClusterMemberSecurity.md
 	src/NativeClientSecurity.md
 src/Performance.md
+	src/BackPressure.md
 	src/ThreadingModel.md
 		src/ThreadingEvent.md
 		src/ThreadingExecutor.md
 		src/ThreadingOperation.md
-	src/BackPressure.md
+	src/SlowOperationDetector.md
 	src/HazelcastPerformanceOnAWS.md
 src/HazelcastSimulator/SimulatorOverview.md
 	src/HazelcastSimulator/InstallingSimulator.md
@@ -182,13 +190,15 @@ src/HazelcastSimulator/SimulatorOverview.md
 	src/HazelcastSimulator/Provisioner.md
 	src/HazelcastSimulator/Coordinator.md
 	src/HazelcastSimulator/Communicator.md
-	src/HazelcastSimulator/PerformanceAndBenchmarking.md
 	src/HazelcastSimulator/SimulatorProperties.md
+	src/HazelcastSimulator/PerformanceAndBenchmarking.md
 src/WAN.md
 #	src/TopologyAwarePartitionManagement.md
-#src/Config.md
-src/HazelcastConfiguration/ConfigurationOverview.md
-#	src/NetworkConfig.md
+src/HazelcastConfiguration/HazelcastConfiguration.md
+	src/HazelcastConfiguration/ConfigurationOverview.md
+	src/HazelcastConfiguration/UsingWildcard.md
+	src/HazelcastConfiguration/UsingVariables.md
+	src/HazelcastConfiguration/ComposingXML.md
 	src/HazelcastConfiguration/NetworkConfiguration.md
 	src/HazelcastConfiguration/GroupConfiguration.md
 	src/HazelcastConfiguration/MapConfiguration.md
@@ -197,6 +207,7 @@ src/HazelcastConfiguration/ConfigurationOverview.md
 	src/HazelcastConfiguration/TopicConfiguration.md
 	src/HazelcastConfiguration/ListConfiguration.md
 	src/HazelcastConfiguration/SetConfiguration.md
+#	src/HazelcastConfiguration/RingBufferConfiguration.md
 	src/HazelcastConfiguration/SemaphoreConfiguration.md
 	src/HazelcastConfiguration/ExecServiceConfiguration.md
 	src/HazelcastConfiguration/SerializationConfiguration.md
@@ -204,15 +215,13 @@ src/HazelcastConfiguration/ConfigurationOverview.md
 	src/HazelcastConfiguration/ServicesConfiguration.md
 	src/HazelcastConfiguration/MgtCenterConfiguration.md
 	src/HazelcastConfiguration/WANReplConfiguration.md
-#		src/ConfigSpecifyInterfaces.md
-#		src/EC2AutoDiscovery.md
-#		src/Ports.md
-#		src/IPv6.md
-		src/PartitionGroupConfig.md
-	src/ListenerConfig.md
-	src/Logging.md
-	src/ConfigurationProperties.md
+	src/HazelcastConfiguration/EnterpriseWanReplicationConfiguration.md
+	src/HazelcastConfiguration/PartitionGroupConfig.md
+	src/HazelcastConfiguration/ListenerConfig.md
+	src/HazelcastConfiguration/Logging.md
+	src/HazelcastConfiguration/SystemProperties.md
 src/NetworkPartitioning.md
 src/Licenses.md
+src/CommonExceptionTypes.md
 src/FAQ.md
 src/Glossary.md

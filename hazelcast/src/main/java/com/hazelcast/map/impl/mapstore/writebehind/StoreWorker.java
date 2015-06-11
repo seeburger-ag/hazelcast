@@ -1,18 +1,18 @@
 /*
-* Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package com.hazelcast.map.impl.mapstore.writebehind;
 
@@ -21,19 +21,22 @@ import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.PartitionContainer;
 import com.hazelcast.map.impl.RecordStore;
 import com.hazelcast.map.impl.mapstore.MapStoreContext;
+import com.hazelcast.map.impl.mapstore.writebehind.entry.DelayedEntry;
 import com.hazelcast.nio.Address;
 import com.hazelcast.partition.InternalPartition;
 import com.hazelcast.partition.InternalPartitionService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.util.Clock;
+import com.hazelcast.util.CollectionUtil;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.hazelcast.util.CollectionUtil.isEmpty;
 
 /**
  * Used to process store operations in another thread.
@@ -68,110 +71,100 @@ public class StoreWorker implements Runnable {
     }
 
 
-    private long getReplicaWaitTime() {
-        return TimeUnit.SECONDS.toMillis(mapServiceContext.getNodeEngine().getGroupProperties()
-                .MAP_REPLICA_SCHEDULED_TASK_DELAY_SECONDS.getInteger());
-    }
-
     @Override
     public void run() {
-        final long now = Clock.currentTimeMillis();
-        final String mapName = this.mapName;
-        final MapServiceContext mapServiceContext = this.mapServiceContext;
-        final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
-        final ClusterService clusterService = nodeEngine.getClusterService();
-        final InternalPartitionService partitionService = nodeEngine.getPartitionService();
-        final Address thisAddress = clusterService.getThisAddress();
-        final int partitionCount = partitionService.getPartitionCount();
-        Map<Integer, Integer> partitionToEntryCountHolder = Collections.emptyMap();
-        List<DelayedEntry> entries = Collections.emptyList();
-        boolean createLazy = true;
+        long now = Clock.currentTimeMillis();
+        NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
+        InternalPartitionService partitionService = nodeEngine.getPartitionService();
+        int partitionCount = partitionService.getPartitionCount();
+        List<DelayedEntry> entries = new ArrayList<DelayedEntry>();
+
         for (int partitionId = 0; partitionId < partitionCount; partitionId++) {
-            final InternalPartition partition = partitionService.getPartition(partitionId, false);
-            final Address owner = partition.getOwnerOrNull();
-            final RecordStore recordStore = getRecordStoreOrNull(mapName, partitionId);
-            if (owner == null || recordStore == null) {
-                // no-op because no owner is set yet.
-                // Therefore we don't know anything about the map
+            InternalPartition partition = partitionService.getPartition(partitionId, false);
+            Address owner = partition.getOwnerOrNull();
+            if (owner == null) {
                 continue;
             }
-            final WriteBehindQueue<DelayedEntry> queue = getWriteBehindQueue(recordStore);
-            final List<DelayedEntry> delayedEntries = filterEntries(queue, recordStore, now);
-            if (delayedEntries.isEmpty()) {
+
+            RecordStore recordStore = getRecordStoreOrNull(mapName, partitionId);
+            if (recordStore == null) {
                 continue;
             }
-            if (!owner.equals(thisAddress)) {
+
+            List<DelayedEntry> entriesToStore = getEntriesToStore(now, recordStore);
+            if (!partition.isLocal()) {
                 if (now > lastRunTime + backupRunIntervalTime) {
-                    doInBackup(delayedEntries, partitionId);
+                    doInBackup(entriesToStore, partitionId);
                 }
-                continue;
+            } else {
+                entries.addAll(entriesToStore);
             }
-            // initialize when needed, we do not want
-            // to create these on backups for every second.
-            if (createLazy) {
-                partitionToEntryCountHolder = new HashMap<Integer, Integer>();
-                entries = new ArrayList<DelayedEntry>();
-                createLazy = false;
-            }
-            partitionToEntryCountHolder.put(partitionId, delayedEntries.size());
-            entries.addAll(delayedEntries);
         }
-        if (!entries.isEmpty()) {
-            Map<Integer, List<DelayedEntry>> failsPerPartition = writeBehindProcessor.process(entries);
-            removeProcessed(mapName, getEntryPerPartitionMap(entries));
-            addFailsToQueue(mapName, failsPerPartition);
-            lastRunTime = now;
+
+        if (entries.isEmpty()) {
+            return;
         }
+
+        Map<Integer, List<DelayedEntry>> failuresPerPartition = writeBehindProcessor.process(entries);
+        removeFinishedStoreOperationsFromQueues(mapName, entries);
+        readdFailedStoreOperationsToQueues(mapName, failuresPerPartition);
+        lastRunTime = now;
     }
 
-    private List<DelayedEntry> filterEntries(WriteBehindQueue<DelayedEntry> queue,
-                                             RecordStore recordStore, long now) {
-        if (queue == null || queue.size() == 0) {
-            return Collections.emptyList();
-        }
+    private List<DelayedEntry> getEntriesToStore(long now, RecordStore recordStore) {
+        int flushCount = getNumberOfFlushedEntries(recordStore);
+        WriteBehindQueue<DelayedEntry> queue = getWriteBehindQueue(recordStore);
 
-        AtomicInteger flushCounter = getFlushCounter(recordStore);
-        int flushCount = flushCounter.get();
+        List<DelayedEntry> entries = new ArrayList<DelayedEntry>();
+        filterWriteBehindQueue(now, flushCount, entries, queue);
 
-        if (flushCount > 0) {
-            return queue.get(flushCount);
+        return entries;
+    }
+
+    private void filterWriteBehindQueue(long now, int count, Collection<DelayedEntry> collection,
+                                        WriteBehindQueue<DelayedEntry> queue) {
+        if (count > 0) {
+            queue.getFrontByNumber(count, collection);
         } else {
-            return queue.filterItems(now);
+            queue.getFrontByTime(now, collection);
         }
     }
 
-    private void removeProcessed(String mapName, Map<Integer, List<DelayedEntry>> entryListPerPartition) {
-        for (Map.Entry<Integer, List<DelayedEntry>> entry : entryListPerPartition.entrySet()) {
-            final int partitionId = entry.getKey();
+    private void removeFinishedStoreOperationsFromQueues(String mapName, List<DelayedEntry> entries) {
+        for (DelayedEntry entry : entries) {
+            final int partitionId = entry.getPartitionId();
             final RecordStore recordStore = getRecordStoreOrNull(mapName, partitionId);
             if (recordStore == null) {
                 continue;
             }
             final WriteBehindQueue<DelayedEntry> queue = getWriteBehindQueue(recordStore);
-            final List<DelayedEntry> entries = entry.getValue();
-            queue.removeAll(entries);
+            queue.removeFirstOccurrence(entry);
 
             final AtomicInteger flushCounter = getFlushCounter(recordStore);
-            if (flushCounter.get() > 0) {
-                flushCounter.addAndGet(-entries.size());
+            final int flushCount = flushCounter.get();
+            if (flushCount > 0) {
+                flushCounter.addAndGet(-1);
             }
-
         }
     }
 
-
-    private Map<Integer, List<DelayedEntry>> getEntryPerPartitionMap(List<DelayedEntry> entries) {
-        final Map<Integer, List<DelayedEntry>> entryListPerPartition = new HashMap<Integer, List<DelayedEntry>>();
-        for (DelayedEntry entry : entries) {
-            final int partitionId = entry.getPartitionId();
-            List<DelayedEntry> delayedEntries = entryListPerPartition.get(partitionId);
-            if (delayedEntries == null) {
-                delayedEntries = new ArrayList<DelayedEntry>();
-                entryListPerPartition.put(partitionId, delayedEntries);
-            }
-            delayedEntries.add(entry);
+    private void readdFailedStoreOperationsToQueues(String mapName, Map<Integer, List<DelayedEntry>> failuresPerPartition) {
+        if (failuresPerPartition.isEmpty()) {
+            return;
         }
-        return entryListPerPartition;
+        for (Map.Entry<Integer, List<DelayedEntry>> entry : failuresPerPartition.entrySet()) {
+            final Integer partitionId = entry.getKey();
+            final List<DelayedEntry> failures = failuresPerPartition.get(partitionId);
+            if (isEmpty(failures)) {
+                continue;
+            }
+            final RecordStore recordStore = getRecordStoreOrNull(mapName, partitionId);
+            if (recordStore == null) {
+                continue;
+            }
+            final WriteBehindQueue<DelayedEntry> queue = getWriteBehindQueue(recordStore);
+            queue.addFirst(failures);
+        }
     }
 
     /**
@@ -182,6 +175,9 @@ public class StoreWorker implements Runnable {
      * @param partitionId    corresponding partition id.
      */
     private void doInBackup(final List<DelayedEntry> delayedEntries, final int partitionId) {
+        if (CollectionUtil.isEmpty(delayedEntries)) {
+            return;
+        }
         final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
         final ClusterService clusterService = nodeEngine.getClusterService();
         final InternalPartitionService partitionService = nodeEngine.getPartitionService();
@@ -190,9 +186,14 @@ public class StoreWorker implements Runnable {
         final Address owner = partition.getOwnerOrNull();
         if (owner != null && !owner.equals(thisAddress)) {
             writeBehindProcessor.callBeforeStoreListeners(delayedEntries);
-            removeProcessed(mapName, getEntryPerPartitionMap(delayedEntries));
+            removeFinishedStoreOperationsFromQueues(mapName, delayedEntries);
             writeBehindProcessor.callAfterStoreListeners(delayedEntries);
         }
+    }
+
+    private long getReplicaWaitTime() {
+        return TimeUnit.SECONDS.toMillis(mapServiceContext.getNodeEngine().getGroupProperties()
+                .MAP_REPLICA_SCHEDULED_TASK_DELAY_SECONDS.getInteger());
     }
 
     private RecordStore getRecordStoreOrNull(String mapName, int partitionId) {
@@ -200,34 +201,19 @@ public class StoreWorker implements Runnable {
         return partitionContainer.getExistingRecordStore(mapName);
     }
 
-    private void addFailsToQueue(String mapName, Map<Integer, List<DelayedEntry>> failsPerPartition) {
-        if (failsPerPartition.isEmpty()) {
-            return;
-        }
-        for (Map.Entry<Integer, List<DelayedEntry>> entry : failsPerPartition.entrySet()) {
-            final Integer partitionId = entry.getKey();
-            final List<DelayedEntry> fails = failsPerPartition.get(partitionId);
-            if (fails == null || fails.isEmpty()) {
-                continue;
-            }
-            final RecordStore recordStore = getRecordStoreOrNull(mapName, partitionId);
-            if (recordStore == null) {
-                continue;
-            }
-            final WriteBehindQueue<DelayedEntry> queue = getWriteBehindQueue(recordStore);
-            queue.addFront(fails);
-        }
-    }
-
-    private WriteBehindQueue<DelayedEntry> getWriteBehindQueue(RecordStore recordStore) {
+    private static WriteBehindQueue<DelayedEntry> getWriteBehindQueue(RecordStore recordStore) {
         WriteBehindStore writeBehindStore = (WriteBehindStore) recordStore.getMapDataStore();
         return writeBehindStore.getWriteBehindQueue();
     }
 
-    private AtomicInteger getFlushCounter(RecordStore recordStore) {
+    private static AtomicInteger getFlushCounter(RecordStore recordStore) {
         WriteBehindStore writeBehindStore = (WriteBehindStore) recordStore.getMapDataStore();
         return writeBehindStore.getFlushCounter();
     }
 
-
+    private static int getNumberOfFlushedEntries(RecordStore recordStore) {
+        AtomicInteger flushCounter = getFlushCounter(recordStore);
+        return flushCounter.get();
+    }
 }
+

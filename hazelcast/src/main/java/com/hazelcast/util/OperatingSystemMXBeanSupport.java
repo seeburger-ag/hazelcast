@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,18 +34,18 @@ public final class OperatingSystemMXBeanSupport {
     /**
      * Reads a long attribute from OperatingSystemMXBean.
      *
-     * @param attributeName name
-     * @param defaultValue default value
-     * @return value of attribute
+     * @param attributeName name of the attribute
+     * @param defaultValue default value if the attribute value is null
+     * @return value of the attribute
      */
     public static long readLongAttribute(String attributeName, long defaultValue) {
         try {
             String methodName = "get" + attributeName;
-            OperatingSystemMXBean mbean = OPERATING_SYSTEM_MX_BEAN;
-            Method method = mbean.getClass().getMethod(methodName);
+            OperatingSystemMXBean systemMXBean = OPERATING_SYSTEM_MX_BEAN;
+            Method method = systemMXBean.getClass().getMethod(methodName);
             method.setAccessible(true);
 
-            Object value = method.invoke(mbean);
+            Object value = method.invoke(systemMXBean);
             if (value == null) {
                 return defaultValue;
             }
@@ -69,5 +69,14 @@ public final class OperatingSystemMXBeanSupport {
             EmptyStatement.ignore(ignored);
         }
         return defaultValue;
+    }
+
+    /**
+     * Reads the system load average attribute from OperatingSystemMXBean.
+     *
+     * @return system load average or negative value if metric is not available
+     */
+    public static double getSystemLoadAverage() {
+        return OPERATING_SYSTEM_MX_BEAN.getSystemLoadAverage();
     }
 }

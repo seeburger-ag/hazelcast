@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,10 +46,14 @@ import com.hazelcast.core.TransactionalQueue;
 import com.hazelcast.core.TransactionalSet;
 import com.hazelcast.logging.LoggingService;
 import com.hazelcast.mapreduce.JobTracker;
+import com.hazelcast.quorum.QuorumService;
+import com.hazelcast.ringbuffer.Ringbuffer;
+import com.hazelcast.transaction.HazelcastXAResource;
 import com.hazelcast.transaction.TransactionContext;
 import com.hazelcast.transaction.TransactionException;
 import com.hazelcast.transaction.TransactionOptions;
 import com.hazelcast.transaction.TransactionalTask;
+import com.hazelcast.util.ExceptionUtil;
 
 import javax.resource.NotSupportedException;
 import javax.resource.ResourceException;
@@ -149,6 +153,11 @@ public class HazelcastConnectionImpl implements HazelcastConnection {
     }
 
     @Override
+    public <E> ITopic<E> getReliableTopic(String name) {
+        return getHazelcastInstance().getReliableTopic(name);
+    }
+
+    @Override
     public <E> ISet<E> getSet(String name) {
         return getHazelcastInstance().getSet(name);
     }
@@ -157,7 +166,6 @@ public class HazelcastConnectionImpl implements HazelcastConnection {
     public <E> IList<E> getList(String name) {
         return getHazelcastInstance().getList(name);
     }
-
 
     @Override
     public <K, V> MultiMap<K, V> getMultiMap(String name) {
@@ -210,6 +218,11 @@ public class HazelcastConnectionImpl implements HazelcastConnection {
     }
 
     @Override
+    public QuorumService getQuorumService() {
+        return getHazelcastInstance().getQuorumService();
+    }
+
+    @Override
     public ClientService getClientService() {
         return getHazelcastInstance().getClientService();
     }
@@ -237,47 +250,41 @@ public class HazelcastConnectionImpl implements HazelcastConnection {
 
     @Override
     public <K, V> TransactionalMap<K, V> getTransactionalMap(String name) {
-        final TransactionContext txContext = this.managedConnection.getTx().getTxContext();
-        if (txContext == null) {
-            throw new IllegalStateException("Transaction is not active");
-        }
+        TransactionContext txContext = getTransactionContext();
         return txContext.getMap(name);
     }
 
     @Override
     public <E> TransactionalQueue<E> getTransactionalQueue(String name) {
-        final TransactionContext txContext = this.managedConnection.getTx().getTxContext();
-        if (txContext == null) {
-            throw new IllegalStateException("Transaction is not active");
-        }
+        TransactionContext txContext = getTransactionContext();
         return txContext.getQueue(name);
     }
 
     @Override
     public <K, V> TransactionalMultiMap<K, V> getTransactionalMultiMap(String name) {
-        final TransactionContext txContext = this.managedConnection.getTx().getTxContext();
-        if (txContext == null) {
-            throw new IllegalStateException("Transaction is not active");
-        }
+        TransactionContext txContext = getTransactionContext();
         return txContext.getMultiMap(name);
     }
 
     @Override
     public <E> TransactionalList<E> getTransactionalList(String name) {
-        final TransactionContext txContext = this.managedConnection.getTx().getTxContext();
-        if (txContext == null) {
-            throw new IllegalStateException("Transaction is not active");
-        }
+        TransactionContext txContext = getTransactionContext();
         return txContext.getList(name);
     }
 
     @Override
     public <E> TransactionalSet<E> getTransactionalSet(String name) {
-        final TransactionContext txContext = this.managedConnection.getTx().getTxContext();
-        if (txContext == null) {
-            throw new IllegalStateException("Transaction is not active");
-        }
+        TransactionContext txContext = getTransactionContext();
         return txContext.getSet(name);
+    }
+
+    private TransactionContext getTransactionContext() {
+        TransactionContext transactionContext = managedConnection.getTransactionContext();
+        if (transactionContext != null) {
+            return transactionContext;
+        }
+        HazelcastXAResource xaResource = getXAResource();
+        return xaResource.getTransactionContext();
     }
 
     @Override
@@ -293,6 +300,11 @@ public class HazelcastConnectionImpl implements HazelcastConnection {
     @Override
     public <K, V> ReplicatedMap<K, V> getReplicatedMap(String name) {
         return getHazelcastInstance().getReplicatedMap(name);
+    }
+
+    @Override
+    public <E> Ringbuffer<E> getRingbuffer(String name) {
+        return getHazelcastInstance().getRingbuffer(name);
     }
 
     @Override
@@ -327,6 +339,14 @@ public class HazelcastConnectionImpl implements HazelcastConnection {
         return getHazelcastInstance().getLocalEndpoint();
     }
 
+    @Override
+    public HazelcastXAResource getXAResource() {
+        try {
+            return (HazelcastXAResource) managedConnection.getXAResource();
+        } catch (ResourceException e) {
+            throw ExceptionUtil.rethrow(e);
+        }
+    }
 
     // unsupported operations
 

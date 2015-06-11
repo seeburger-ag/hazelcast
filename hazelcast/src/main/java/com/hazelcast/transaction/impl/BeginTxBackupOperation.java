@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,15 +29,18 @@ public final class BeginTxBackupOperation extends Operation {
 
     private String callerUuid;
     private String txnId;
-    private SerializableXID xid;
 
     public BeginTxBackupOperation() {
     }
 
-    public BeginTxBackupOperation(String callerUuid, String txnId, SerializableXID xid) {
+    public BeginTxBackupOperation(String callerUuid, String txnId) {
         this.callerUuid = callerUuid;
         this.txnId = txnId;
-        this.xid = xid;
+    }
+
+    @Override
+    public String getServiceName() {
+        return TransactionManagerServiceImpl.SERVICE_NAME;
     }
 
     @Override
@@ -47,7 +50,7 @@ public final class BeginTxBackupOperation extends Operation {
     @Override
     public void run() throws Exception {
         TransactionManagerServiceImpl txManagerService = getService();
-        txManagerService.beginTxBackupLog(callerUuid, txnId, xid);
+        txManagerService.beginTxBackupLog(callerUuid, txnId);
     }
 
     @Override
@@ -76,13 +79,11 @@ public final class BeginTxBackupOperation extends Operation {
     protected void writeInternal(ObjectDataOutput out) throws IOException {
         out.writeUTF(callerUuid);
         out.writeUTF(txnId);
-        out.writeObject(xid);
     }
 
     @Override
     protected void readInternal(ObjectDataInput in) throws IOException {
         callerUuid = in.readUTF();
         txnId = in.readUTF();
-        xid = in.readObject();
     }
 }

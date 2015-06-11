@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,22 +22,28 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.test.HazelcastSerialClassRunner;
 import com.hazelcast.test.annotation.QuickTest;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
-
 import java.beans.XMLDecoder;
 import java.beans.XMLEncoder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.After;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
 
 import static junit.framework.Assert.assertEquals;
 
 @RunWith(HazelcastSerialClassRunner.class)
 @Category(QuickTest.class)
 public class CustomSerializationTest {
+
+    @After
+    public void cleanup() {
+        System.clearProperty("hazelcast.serialization.custom.override");
+    }
 
     @Test
     public void testSerializer() throws Exception {
@@ -59,6 +65,37 @@ public class CustomSerializationTest {
         testSerializer(ByteOrder.nativeOrder(), true);
     }
 
+    @Test
+    public void testSerializerOverridenHierarchyWhenEnabled() throws Exception {
+        System.setProperty("hazelcast.serialization.custom.override", "true");
+        SerializationConfig config = new SerializationConfig();
+        FooXmlSerializer serializer = new FooXmlSerializer();
+        SerializerConfig sc = new SerializerConfig()
+                .setImplementation(serializer)
+                .setTypeClass(FooDataSerializable.class);
+        config.addSerializerConfig(sc);
+        SerializationService ss = new DefaultSerializationServiceBuilder().setConfig(config).build();
+        FooDataSerializable foo = new FooDataSerializable("foo");
+        ss.toData(foo);
+        assertEquals(0, foo.serializationCount.get());
+        assertEquals(1, serializer.serializationCount.get());
+    }
+
+    @Test
+    public void testSerializerOverridenHierarchyWhenDisabled() throws Exception {
+        SerializationConfig config = new SerializationConfig();
+        FooXmlSerializer serializer = new FooXmlSerializer();
+        SerializerConfig sc = new SerializerConfig()
+                .setImplementation(serializer)
+                .setTypeClass(FooDataSerializable.class);
+        config.addSerializerConfig(sc);
+        SerializationService ss = new DefaultSerializationServiceBuilder().setConfig(config).build();
+        FooDataSerializable foo = new FooDataSerializable("foo");
+        ss.toData(foo);
+        assertEquals(1, foo.serializationCount.get());
+        assertEquals(0, serializer.serializationCount.get());
+    }
+
     private void testSerializer(ByteOrder order, boolean allowUnsafe) throws Exception {
         SerializationConfig config = new SerializationConfig();
         config.setAllowUnsafe(allowUnsafe).setByteOrder(order).setUseNativeByteOrder(false);
@@ -67,16 +104,22 @@ public class CustomSerializationTest {
                 .setTypeClass(Foo.class);
         config.addSerializerConfig(sc);
         SerializationService ss = new DefaultSerializationServiceBuilder().setConfig(config).build();
-        Foo foo = new Foo();
-        foo.setFoo("f");
+        Foo foo = new Foo("f");
         Data d = ss.toData(foo);
-        Foo newFoo = (Foo) ss.toObject(d);
-        assertEquals(newFoo.getFoo(), foo.getFoo());
+        Foo newFoo = ss.toObject(d);
+        assertEquals(newFoo, foo);
     }
 
     public static class Foo {
 
         private String foo;
+
+        public Foo() {
+        }
+
+        public Foo(String foo) {
+            this.foo = foo;
+        }
 
         public String getFoo() {
             return foo;
@@ -85,9 +128,83 @@ public class CustomSerializationTest {
         public void setFoo(String foo) {
             this.foo = foo;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Foo foo1 = (Foo) o;
+
+            return !(foo != null ? !foo.equals(foo1.foo) : foo1.foo != null);
+
+        }
+
+        @Override
+        public int hashCode() {
+            return foo != null ? foo.hashCode() : 0;
+        }
     }
 
+    public static class FooDataSerializable extends Foo implements DataSerializable {
+
+        AtomicInteger serializationCount = new AtomicInteger();
+        private String foo;
+
+        public FooDataSerializable() {
+        }
+
+        public FooDataSerializable(String foo) {
+            this.foo = foo;
+        }
+
+        public String getFoo() {
+            return foo;
+        }
+
+        public void setFoo(String foo) {
+            this.foo = foo;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Foo foo1 = (Foo) o;
+
+            return !(foo != null ? !foo.equals(foo1.foo) : foo1.foo != null);
+
+        }
+
+        @Override
+        public int hashCode() {
+            return foo != null ? foo.hashCode() : 0;
+        }
+
+        @Override
+        public void writeData(ObjectDataOutput out) throws IOException {
+            serializationCount.incrementAndGet();
+            out.writeUTF(foo);
+        }
+
+        @Override
+        public void readData(ObjectDataInput in) throws IOException {
+            foo = in.readUTF();
+        }
+
+        @Override
+        public String toString() {
+            return "FooDataSerializable{" +
+                    "foo='" + foo + '\'' +
+                    '}';
+        }
+    }
+
+
     public static class FooXmlSerializer implements StreamSerializer<Foo> {
+
+        AtomicInteger serializationCount = new AtomicInteger();
 
         @Override
         public int getTypeId() {
@@ -96,6 +213,7 @@ public class CustomSerializationTest {
 
         @Override
         public void write(ObjectDataOutput out, Foo object) throws IOException {
+            serializationCount.incrementAndGet();
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             XMLEncoder encoder = new XMLEncoder(bos);
             encoder.writeObject(object);

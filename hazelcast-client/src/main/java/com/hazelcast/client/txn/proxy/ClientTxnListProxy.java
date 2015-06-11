@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package com.hazelcast.client.txn.proxy;
 
-import com.hazelcast.client.txn.TransactionContextProxy;
-import com.hazelcast.collection.client.TxnListAddRequest;
-import com.hazelcast.collection.client.TxnListRemoveRequest;
-import com.hazelcast.collection.client.TxnListSizeRequest;
-import com.hazelcast.collection.list.ListService;
+import com.hazelcast.client.spi.ClientTransactionContext;
+import com.hazelcast.collection.impl.txnlist.client.TxnListAddRequest;
+import com.hazelcast.collection.impl.txnlist.client.TxnListRemoveRequest;
+import com.hazelcast.collection.impl.txnlist.client.TxnListSizeRequest;
+import com.hazelcast.collection.impl.list.ListService;
 import com.hazelcast.core.TransactionalList;
 import com.hazelcast.nio.serialization.Data;
 
@@ -29,8 +29,8 @@ import com.hazelcast.nio.serialization.Data;
 */
 public class ClientTxnListProxy<E> extends AbstractClientTxnCollectionProxy<E> implements TransactionalList<E> {
 
-    public ClientTxnListProxy(String name, TransactionContextProxy proxy) {
-        super(name, proxy);
+    public ClientTxnListProxy(String name, ClientTransactionContext transactionContext) {
+        super(name, transactionContext);
     }
 
     public String getServiceName() {

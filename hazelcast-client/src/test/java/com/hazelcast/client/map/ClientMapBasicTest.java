@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1089,9 +1089,9 @@ public class ClientMapBasicTest {
     @Test
     public void testMapStatistics_withClientOperations() {
         final String mapName = randomString();
-        final IMap map = client.getMap(mapName);
         final LocalMapStats serverMapStats = server.getMap(mapName).getLocalMapStats();
 
+        final IMap map = client.getMap(mapName);
         final int operationCount = 1123;
         for (int i = 0; i < operationCount; i++) {
             map.put(i, i);

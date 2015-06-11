@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,10 @@ import com.hazelcast.core.ReplicatedMap;
 import com.hazelcast.logging.LoggingService;
 import com.hazelcast.mapreduce.JobTracker;
 import com.hazelcast.nio.serialization.SerializationService;
+import com.hazelcast.quorum.QuorumService;
+import com.hazelcast.ringbuffer.Ringbuffer;
+import com.hazelcast.spi.impl.SerializationServiceSupport;
+import com.hazelcast.transaction.HazelcastXAResource;
 import com.hazelcast.transaction.TransactionContext;
 import com.hazelcast.transaction.TransactionException;
 import com.hazelcast.transaction.TransactionOptions;
@@ -51,7 +55,7 @@ import com.hazelcast.transaction.TransactionalTask;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentMap;
 
-public final class HazelcastInstanceProxy implements HazelcastInstance {
+public final class HazelcastInstanceProxy implements HazelcastInstance, SerializationServiceSupport {
 
     volatile HazelcastInstanceImpl original;
     private final String name;
@@ -82,6 +86,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance {
     }
 
     @Override
+    public <E> ITopic<E> getReliableTopic(String name) {
+        return getOriginal().getReliableTopic(name);
+    }
+
+    @Override
     public <E> ISet<E> getSet(String name) {
         return getOriginal().getSet(name);
     }
@@ -99,6 +108,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance {
     @Override
     public JobTracker getJobTracker(String name) {
         return getOriginal().getJobTracker(name);
+    }
+
+    @Override
+    public <E> Ringbuffer<E> getRingbuffer(String name) {
+        return getOriginal().getRingbuffer(name);
     }
 
     @Override
@@ -192,6 +206,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance {
     }
 
     @Override
+    public QuorumService getQuorumService() {
+        return getOriginal().getQuorumService();
+    }
+
+    @Override
     public ClientService getClientService() {
         return getOriginal().getClientService();
     }
@@ -230,6 +249,11 @@ public final class HazelcastInstanceProxy implements HazelcastInstance {
     @Override
     public ConcurrentMap<String, Object> getUserContext() {
         return getOriginal().getUserContext();
+    }
+
+    @Override
+    public HazelcastXAResource getXAResource() {
+        return getOriginal().getXAResource();
     }
 
     @Override

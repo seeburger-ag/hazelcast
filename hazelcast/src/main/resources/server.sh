@@ -2,7 +2,7 @@
 
 PRG="$0"
 PRGDIR=`dirname "$PRG"`
-HAZELCAST_HOME=../$PRGDIR
+HAZELCAST_HOME=`cd "$PRGDIR/.." >/dev/null; pwd`
 
 if [ $JAVA_HOME ]
 then
@@ -36,7 +36,7 @@ if [ "x$MIN_HEAP_SIZE" != "x" ]; then
 fi
 
 if [ "x$MAX_HEAP_SIZE" != "x" ]; then
-	JAVA_OPTS="$JAVA_OPTS -Xms${MAX_HEAP_SIZE}"
+	JAVA_OPTS="$JAVA_OPTS -Xmx${MAX_HEAP_SIZE}"
 fi
 
 export CLASSPATH=$HAZELCAST_HOME/lib/hazelcast-all-${project.version}.jar

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ public abstract class HibernateTestSupport extends HazelcastTestSupport {
         Hazelcast.shutdownAll();
     }
 
-
     @After
     public final void cleanup() {
         Hazelcast.shutdownAll();
@@ -57,8 +56,8 @@ public abstract class HibernateTestSupport extends HazelcastTestSupport {
         Configuration conf = new Configuration();
         URL xml = HibernateTestSupport.class.getClassLoader().getResource("test-hibernate.cfg.xml");
         props.put(CacheEnvironment.EXPLICIT_VERSION_CHECK, "true");
-        conf.addProperties(props);
         conf.configure(xml);
+        conf.addProperties(props);
         final SessionFactory sf = conf.buildSessionFactory();
         sf.getStatistics().setStatisticsEnabled(true);
         return sf;

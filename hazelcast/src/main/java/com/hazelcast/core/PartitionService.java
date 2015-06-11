@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.hazelcast.core;
 
+import com.hazelcast.partition.PartitionLostListener;
+
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -27,6 +29,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @see Partition
  * @see MigrationListener
+ * @see PartitionLostListener
  */
 public interface PartitionService {
 
@@ -52,8 +55,12 @@ public interface PartitionService {
      * <p/>
      * The returned value will never be null.
      *
+     * This method is deprecated since Hazelcast 3.5. If you need a random partition-key, you can use e.g. a
+     * random number, random string or UUID for that.
+     *
      * @return the random partition key.
      */
+    @Deprecated
     String randomPartitionKey();
 
     /**
@@ -88,6 +95,38 @@ public interface PartitionService {
      * @see #addMigrationListener(MigrationListener)
      */
     boolean removeMigrationListener(String registrationId);
+
+
+    /**
+     * Adds a PartitionLostListener.
+     * <p/>
+     * The addPartitionLostListener returns a register-id. This id is needed to remove the PartitionLostListener using the
+     * {@link #removePartitionLostListener(String)} method.
+     * <p/>
+     * There is no check for duplicate registrations, so if you register the listener twice, it will get events twice.
+     * IMPORTANT: Please @see com.hazelcast.partition.PartitionLostListener for weaknesses
+     *
+     * @param partitionLostListener the added PartitionLostListener
+     * @return returns the registration id for the PartitionLostListener.
+     * @throws java.lang.NullPointerException if partitionLostListener is null.
+     * @see #removePartitionLostListener(String)
+     */
+    String addPartitionLostListener(PartitionLostListener partitionLostListener);
+
+    /**
+     * Removes a PartitionLostListener.
+     * <p/>
+     * If the same PartitionLostListener is registered multiple times, it needs to be removed multiple times.
+     * <p/>
+     * This method can safely be called multiple times for the same registration-id; every subsequent call is just ignored.
+     *
+     * @param registrationId the registration id of the listener to remove.
+     * @return true if the listener is removed, false otherwise.
+     * @throws java.lang.NullPointerException if registrationId is null.
+     *
+     * @see #addPartitionLostListener(PartitionLostListener)
+     */
+    boolean removePartitionLostListener(String registrationId);
 
     /**
      * Checks whether the cluster is in a safe state. When in a safe state,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,11 @@ import com.hazelcast.cache.impl.ICacheInternal;
 import com.hazelcast.cache.impl.client.CacheGetAllRequest;
 import com.hazelcast.cache.impl.client.CacheGetRequest;
 import com.hazelcast.cache.impl.client.CacheSizeRequest;
-import com.hazelcast.client.nearcache.ClientNearCache;
+import com.hazelcast.cache.impl.nearcache.NearCache;
+import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.spi.ClientContext;
-import com.hazelcast.client.spi.impl.ClientCallFuture;
+import com.hazelcast.client.spi.impl.ClientInvocation;
+import com.hazelcast.client.spi.impl.ClientInvocationFuture;
 import com.hazelcast.config.CacheConfig;
 import com.hazelcast.core.ExecutionCallback;
 import com.hazelcast.core.ICompletableFuture;
@@ -57,11 +59,54 @@ abstract class AbstractClientCacheProxy<K, V>
         extends AbstractClientInternalCacheProxy<K, V>
         implements ICacheInternal<K, V> {
 
-    protected AbstractClientCacheProxy(CacheConfig cacheConfig, ClientContext clientContext) {
-        super(cacheConfig, clientContext);
+    protected AbstractClientCacheProxy(CacheConfig cacheConfig, ClientContext clientContext,
+                                       HazelcastClientCacheManager cacheManager) {
+        super(cacheConfig, clientContext, cacheManager);
     }
 
-    //region ICACHE: JCACHE EXTENSION
+    protected Object getInternal(K key, ExpiryPolicy expiryPolicy, boolean async) {
+        ensureOpen();
+        validateNotNull(key);
+        final Data keyData = toData(key);
+        Object cached = nearCache != null ? nearCache.get(keyData) : null;
+        if (cached != null && !NearCache.NULL_OBJECT.equals(cached)) {
+            return createCompletedFuture(cached);
+        }
+        CacheGetRequest request = new CacheGetRequest(nameWithPrefix, keyData, expiryPolicy, cacheConfig.getInMemoryFormat());
+        ClientInvocationFuture future;
+        try {
+            final int partitionId = clientContext.getPartitionService().getPartitionId(key);
+            final HazelcastClientInstanceImpl client = (HazelcastClientInstanceImpl) clientContext.getHazelcastInstance();
+            final ClientInvocation clientInvocation = new ClientInvocation(client, request, partitionId);
+            future = clientInvocation.invoke();
+        } catch (Exception e) {
+            throw ExceptionUtil.rethrow(e);
+        }
+        if (async) {
+            if (nearCache != null) {
+                future.andThenInternal(new ExecutionCallback<Data>() {
+                    public void onResponse(Data valueData) {
+                        storeInNearCache(keyData, valueData, null);
+                    }
+
+                    public void onFailure(Throwable t) {
+                    }
+                });
+            }
+            return new DelegatingFuture<V>(future, clientContext.getSerializationService());
+        } else {
+            try {
+                Object value = future.get();
+                if (nearCache != null) {
+                    storeInNearCache(keyData, toData(value), null);
+                }
+                return toObject(value);
+            } catch (Throwable e) {
+                throw ExceptionUtil.rethrowAllowedTypeFirst(e, CacheException.class);
+            }
+        }
+    }
+
     @Override
     public ICompletableFuture<V> getAsync(K key) {
         return getAsync(key, null);
@@ -69,32 +114,7 @@ abstract class AbstractClientCacheProxy<K, V>
 
     @Override
     public ICompletableFuture<V> getAsync(K key, ExpiryPolicy expiryPolicy) {
-        ensureOpen();
-        validateNotNull(key);
-        final Data keyData = toData(key);
-        Object cached = nearCache != null ? nearCache.get(keyData) : null;
-        if (cached != null && !ClientNearCache.NULL_OBJECT.equals(cached)) {
-            return createCompletedFuture(cached);
-        }
-        CacheGetRequest request = new CacheGetRequest(nameWithPrefix, keyData, expiryPolicy, cacheConfig.getInMemoryFormat());
-        ClientCallFuture future;
-        final ClientContext context = clientContext;
-        try {
-            future = (ClientCallFuture) context.getInvocationService().invokeOnKeyOwner(request, keyData);
-        } catch (Exception e) {
-            throw ExceptionUtil.rethrow(e);
-        }
-        if (nearCache != null) {
-            future.andThenInternal(new ExecutionCallback<Data>() {
-                public void onResponse(Data valueData) {
-                    storeInNearCache(keyData, valueData, null);
-                }
-
-                public void onFailure(Throwable t) {
-                }
-            });
-        }
-        return new DelegatingFuture<V>(future, clientContext.getSerializationService());
+        return (ICompletableFuture<V>) getInternal(key, expiryPolicy, true);
     }
 
     @Override
@@ -174,12 +194,7 @@ abstract class AbstractClientCacheProxy<K, V>
 
     @Override
     public V get(K key, ExpiryPolicy expiryPolicy) {
-        final Future<V> f = getAsync(key, expiryPolicy);
-        try {
-            return toObject(f.get());
-        } catch (Throwable e) {
-            throw ExceptionUtil.rethrowAllowedTypeFirst(e, CacheException.class);
-        }
+        return (V) getInternal(key, expiryPolicy, false);
     }
 
     @Override
@@ -219,7 +234,7 @@ abstract class AbstractClientCacheProxy<K, V>
             while (iterator.hasNext()) {
                 Data key = iterator.next();
                 Object cached = nearCache.get(key);
-                if (cached != null && !ClientNearCache.NULL_OBJECT.equals(cached)) {
+                if (cached != null && !NearCache.NULL_OBJECT.equals(cached)) {
                     result.put((K) toObject(key), (V) cached);
                     iterator.remove();
                 }
@@ -317,8 +332,5 @@ abstract class AbstractClientCacheProxy<K, V>
     public CacheStatistics getLocalCacheStatistics() {
         throw new UnsupportedOperationException("local cache Statistics are not implemented yet");
     }
-
-    //endregion ICACHE: JCACHE EXTENSION
-
 
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hazelcast.cache.impl;
 
 import com.hazelcast.cache.HazelcastCacheManager;
@@ -28,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.hazelcast.util.ValidationUtil.checkNotNull;
+import static com.hazelcast.util.Preconditions.checkNotNull;
 
 /**
  * Abstract {@link HazelcastCacheManager} (also {@link CacheManager} as indirect) implementation
@@ -86,14 +102,8 @@ public abstract class AbstractHazelcastCacheManager
         this.lifecycleListenerRegistrationId = registerLifecycleListener();
     }
 
-    @Override
-    public HazelcastInstance getHazelcastInstance() {
-        return hazelcastInstance;
-    }
-
-    @Override
-    public <K, V, C extends Configuration<K, V>> ICache<K, V> createCache(String cacheName, C configuration)
-            throws IllegalArgumentException {
+    private <K, V, C extends Configuration<K, V>> ICacheInternal<K, V> createCacheInternal(String cacheName,
+            C configuration) throws IllegalArgumentException {
         checkIfManagerNotClosed();
         checkNotNull(cacheName, "cacheName must not be null");
         checkNotNull(configuration, "configuration must not be null");
@@ -122,6 +132,17 @@ public abstract class AbstractHazelcastCacheManager
             return (ICacheInternal<K, V>) cache;
         }
         throw new CacheException("A cache named " + cacheName + " already exists.");
+    }
+
+    @Override
+    public HazelcastInstance getHazelcastInstance() {
+        return hazelcastInstance;
+    }
+
+    @Override
+    public <K, V, C extends Configuration<K, V>> ICache<K, V> createCache(String cacheName, C configuration)
+            throws IllegalArgumentException {
+        return createCacheInternal(cacheName, configuration);
     }
 
     private ICacheInternal<?, ?> getOrPutIfAbsent(String nameWithPrefix, ICacheInternal cacheProxy) {
@@ -176,6 +197,16 @@ public abstract class AbstractHazelcastCacheManager
             }
         }
         return null;
+    }
+
+    public <K, V>  ICache<K, V> getOrCreateCache(String cacheName, CacheConfig<K, V> cacheConfig) {
+        checkIfManagerNotClosed();
+        String cacheNameWithPrefix = getCacheNameWithPrefix(cacheName);
+        ICacheInternal<?, ?> cache = caches.get(cacheNameWithPrefix);
+        if (cache == null) {
+            cache = createCacheInternal(cacheName, cacheConfig);
+        }
+        return ensureOpenIfAvailable((ICacheInternal<K, V>) cache);
     }
 
     @Override
@@ -349,7 +380,7 @@ public abstract class AbstractHazelcastCacheManager
         return sb.toString();
     }
 
-    protected String getCacheNameWithPrefix(String name) {
+    public String getCacheNameWithPrefix(String name) {
         return cacheNamePrefix + name;
     }
 
@@ -371,7 +402,7 @@ public abstract class AbstractHazelcastCacheManager
         return cacheConfig;
     }
 
-    protected <K, V> void registerListeners(CacheConfig<K, V> cacheConfig, ICacheInternal<K, V> source) {
+    protected <K, V> void registerListeners(CacheConfig<K, V> cacheConfig, ICache<K, V> source) {
         Iterator<CacheEntryListenerConfiguration<K, V>> iterator =
                 cacheConfig.getCacheEntryListenerConfigurations().iterator();
         while (iterator.hasNext()) {

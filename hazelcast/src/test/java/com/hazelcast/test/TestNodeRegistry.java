@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -180,6 +180,7 @@ final class TestNodeRegistry {
                 node.setMasterAddress(master);
                 if (node.getMasterAddress().equals(node.getThisAddress())) {
                     node.setJoined();
+                    node.setAsMaster();
                 } else {
                     for (int i = 0; !node.joined() && i < 2000; i++) {
                         try {
@@ -353,14 +354,14 @@ final class TestNodeRegistry {
                 if (member != null) {
                     member.didRead();
                 }
-                nodeEngine.handlePacket(newPacket);
+                nodeEngine.getPacketTransceiver().receive(newPacket);
                 return true;
             }
             return false;
         }
 
         private Packet readFromPacket(Packet packet) {
-            Packet newPacket = new Packet(nodeEngine.getSerializationService().getPortableContext());
+            Packet newPacket = new Packet();
             ByteBuffer buffer = ByteBuffer.allocate(4096);
             boolean writeDone;
             boolean readDone;

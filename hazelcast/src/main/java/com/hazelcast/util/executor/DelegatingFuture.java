@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,26 +30,24 @@ import java.util.concurrent.TimeoutException;
 
 public class DelegatingFuture<V> implements ICompletableFuture<V> {
 
-    protected final ICompletableFuture future;
+    private final ICompletableFuture future;
     private final SerializationService serializationService;
     private final V defaultValue;
     private final boolean hasDefaultValue;
+    private final Object mutex = new Object();
     private V value;
     private Throwable error;
     private volatile boolean done;
 
     public DelegatingFuture(ICompletableFuture future, SerializationService serializationService) {
-        this.future = future;
-        this.serializationService = serializationService;
-        this.defaultValue = null;
-        this.hasDefaultValue = false;
+        this(future, serializationService, null);
     }
 
     public DelegatingFuture(ICompletableFuture future, SerializationService serializationService, V defaultValue) {
         this.future = future;
         this.serializationService = serializationService;
         this.defaultValue = defaultValue;
-        this.hasDefaultValue = true;
+        this.hasDefaultValue = defaultValue != null;
     }
 
     @Override
@@ -67,7 +65,7 @@ public class DelegatingFuture<V> implements ICompletableFuture<V> {
     @Override
     public final V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
         if (!done) {
-            synchronized (this) {
+            synchronized (mutex) {
                 if (!done) {
                     try {
                         value = getResult(future.get(timeout, unit));
@@ -133,13 +131,52 @@ public class DelegatingFuture<V> implements ICompletableFuture<V> {
         this.done = true;
     }
 
-    @Override
-    public void andThen(ExecutionCallback<V> callback) {
-        future.andThen(callback);
+    protected ICompletableFuture getFuture() {
+        return future;
     }
 
     @Override
-    public void andThen(ExecutionCallback<V> callback, Executor executor) {
-        future.andThen(callback, executor);
+    public void andThen(final ExecutionCallback<V> callback) {
+        future.andThen(new DelegatingExecutionCallback<V>(callback));
+    }
+
+    @Override
+    public void andThen(final ExecutionCallback<V> callback, Executor executor) {
+        future.andThen(new DelegatingExecutionCallback<V>(callback), executor);
+    }
+
+    private class DelegatingExecutionCallback<T> implements ExecutionCallback {
+
+        private final ExecutionCallback<T> callback;
+
+        DelegatingExecutionCallback(ExecutionCallback<T> callback) {
+            this.callback = callback;
+        }
+
+        @Override
+        public void onResponse(Object response) {
+            if (!done) {
+                synchronized (mutex) {
+                    if (!done) {
+                        value = getResult(response);
+                        done = true;
+                    }
+                }
+            }
+            callback.onResponse((T) value);
+        }
+
+        @Override
+        public void onFailure(Throwable t) {
+            if (!done) {
+                synchronized (mutex) {
+                    if (!done) {
+                        error = t;
+                        done = true;
+                    }
+                }
+            }
+            callback.onFailure(t);
+        }
     }
 }

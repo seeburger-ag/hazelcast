@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package com.hazelcast.test;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.test.annotation.Repeat;
-
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -29,20 +28,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-
 import org.junit.After;
 import org.junit.internal.runners.statements.RunAfters;
-import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.MultipleFailureException;
 import org.junit.runners.model.Statement;
 
 /**
- * User: ahmetmircik
- * Date: 11/27/13
+ * Base test runner which has base system properties and test repetition logic. The tests are run in random order.
  */
-public abstract class AbstractHazelcastClassRunner extends BlockJUnit4ClassRunner {
+public abstract class AbstractHazelcastClassRunner extends AbstractParameterizedHazelcastClassRunner {
 
     protected static final boolean DISABLE_THREAD_DUMP_ON_FAILURE =
             Boolean.getBoolean("hazelcast.test.disableThreadDumpOnFailure");
@@ -69,6 +65,16 @@ public abstract class AbstractHazelcastClassRunner extends BlockJUnit4ClassRunne
         System.setProperty("hazelcast.multicast.group", "224." + g1 + "." + g2 + "." + g3);
     }
 
+    protected static final ThreadLocal<FrameworkMethod> FRAMEWORK_METHOD_THREAD_LOCAL = new ThreadLocal<FrameworkMethod>();
+
+    public static FrameworkMethod getThreadLocalFrameworkMethod() {
+        return FRAMEWORK_METHOD_THREAD_LOCAL.get();
+    }
+
+    public static String getTestMethodName() {
+        return FRAMEWORK_METHOD_THREAD_LOCAL.get().getName();
+    }
+
     /**
      * Creates a BlockJUnit4ClassRunner to run {@code klass}
      *
@@ -78,12 +84,19 @@ public abstract class AbstractHazelcastClassRunner extends BlockJUnit4ClassRunne
         super(klass);
     }
 
+    public AbstractHazelcastClassRunner(Class<?> klass, Object[] parameters,
+                                        String name) throws InitializationError {
+        super(klass, parameters, name);
+    }
+
     @Override
     protected List<FrameworkMethod> getChildren() {
-        final List<FrameworkMethod> children = super.getChildren();
-        Collections.shuffle(children);
-        return children;
+        List<FrameworkMethod> children = super.getChildren();
+        List<FrameworkMethod> modifiableList = new ArrayList<FrameworkMethod>(children);
+        Collections.shuffle(modifiableList);
+        return modifiableList;
     }
+
 
     @Override
     protected Statement withAfters(FrameworkMethod method, Object target,
@@ -121,8 +134,8 @@ public abstract class AbstractHazelcastClassRunner extends BlockJUnit4ClassRunne
                 next.evaluate();
             } catch (Throwable e) {
                 System.err.println("THREAD DUMP FOR TEST FAILURE: " +
-                                   "\"" + e.getMessage() + "\" at " +
-                                   "\"" + method.getName() + "\"" + "\n");
+                        "\"" + e.getMessage() + "\" at " +
+                        "\"" + method.getName() + "\"" + "\n");
                 System.err.println(generateThreadDump());
                 errors.add(e);
             } finally {
@@ -170,7 +183,7 @@ public abstract class AbstractHazelcastClassRunner extends BlockJUnit4ClassRunne
                 originalStatement.evaluate();
 
                 Set<HazelcastInstance> instances = Hazelcast.getAllHazelcastInstances();
-                if(!instances.isEmpty()) {
+                if (!instances.isEmpty()) {
                     String message = "Instances haven't been shut down: " + instances;
                     Hazelcast.shutdownAll();
                     throw new IllegalStateException(message);
@@ -179,7 +192,7 @@ public abstract class AbstractHazelcastClassRunner extends BlockJUnit4ClassRunne
         };
     }
 
-    protected class TestRepeater extends Statement {
+    private class TestRepeater extends Statement {
 
         private final Statement statement;
         private final Method testMethod;

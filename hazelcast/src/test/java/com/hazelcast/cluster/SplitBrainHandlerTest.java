@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -272,14 +272,6 @@ public class SplitBrainHandlerTest extends HazelcastTestSupport {
         assertEquals(3, h3.getCluster().getMembers().size());
     }
 
-    private void closeConnectionBetween(HazelcastInstance h1, HazelcastInstance h2) {
-        if (h1 == null || h2 == null) return;
-        final Node n1 = TestUtil.getNode(h1);
-        final Node n2 = TestUtil.getNode(h2);
-        n1.clusterService.removeAddress(n2.address);
-        n2.clusterService.removeAddress(n1.address);
-    }
-
     @Test
     public void testTcpIpSplitBrainJoinsCorrectCluster() throws Exception {
 
@@ -502,9 +494,9 @@ public class SplitBrainHandlerTest extends HazelcastTestSupport {
         hz2.getLifecycleService().addLifecycleListener(lifecycleListener);
         hz3.getLifecycleService().addLifecycleListener(lifecycleListener);
 
-        FirewallingTcpIpConnectionManager cm1 = getConnectionManager(hz1);
-        FirewallingTcpIpConnectionManager cm2 = getConnectionManager(hz2);
-        FirewallingTcpIpConnectionManager cm3 = getConnectionManager(hz3);
+        FirewallingTcpIpConnectionManager cm1 = getFireWalledConnectionManager(hz1);
+        FirewallingTcpIpConnectionManager cm2 = getFireWalledConnectionManager(hz2);
+        FirewallingTcpIpConnectionManager cm3 = getFireWalledConnectionManager(hz3);
 
         // block n2 & n3 on n1
         cm1.block(n2.address);
@@ -586,9 +578,9 @@ public class SplitBrainHandlerTest extends HazelcastTestSupport {
         hz1.getLifecycleService().addLifecycleListener(lifecycleListener);
         hz2.getLifecycleService().addLifecycleListener(lifecycleListener);
 
-        FirewallingTcpIpConnectionManager cm1 = getConnectionManager(hz1);
-        FirewallingTcpIpConnectionManager cm2 = getConnectionManager(hz2);
-        FirewallingTcpIpConnectionManager cm3 = getConnectionManager(hz3);
+        FirewallingTcpIpConnectionManager cm1 = getFireWalledConnectionManager(hz1);
+        FirewallingTcpIpConnectionManager cm2 = getFireWalledConnectionManager(hz2);
+        FirewallingTcpIpConnectionManager cm3 = getFireWalledConnectionManager(hz3);
 
         cm3.block(n1.address);
         cm3.block(n2.address);
@@ -674,9 +666,9 @@ public class SplitBrainHandlerTest extends HazelcastTestSupport {
         hz2.getLifecycleService().addLifecycleListener(lifecycleListener);
         hz3.getLifecycleService().addLifecycleListener(lifecycleListener);
 
-        FirewallingTcpIpConnectionManager cm1 = getConnectionManager(hz1);
-        FirewallingTcpIpConnectionManager cm2 = getConnectionManager(hz2);
-        FirewallingTcpIpConnectionManager cm3 = getConnectionManager(hz3);
+        FirewallingTcpIpConnectionManager cm1 = getFireWalledConnectionManager(hz1);
+        FirewallingTcpIpConnectionManager cm2 = getFireWalledConnectionManager(hz2);
+        FirewallingTcpIpConnectionManager cm3 = getFireWalledConnectionManager(hz3);
 
         cm1.block(n2.address);
         cm1.block(n3.address);
@@ -714,13 +706,13 @@ public class SplitBrainHandlerTest extends HazelcastTestSupport {
     private static class FirewallingNodeContext extends DefaultNodeContext {
         @Override
         public ConnectionManager createConnectionManager(Node node, ServerSocketChannel serverSocketChannel) {
-            NodeIOService ioService = new NodeIOService(node);
-            return new FirewallingTcpIpConnectionManager(ioService, serverSocketChannel);
+            NodeIOService ioService = new NodeIOService(node, node.nodeEngine);
+            return new FirewallingTcpIpConnectionManager(node.loggingService,
+                    node.getHazelcastThreadGroup(), ioService, serverSocketChannel);
         }
     }
 
-    private static FirewallingTcpIpConnectionManager getConnectionManager(HazelcastInstance hz) {
-        Node node = TestUtil.getNode(hz);
-        return (FirewallingTcpIpConnectionManager) node.getConnectionManager();
+    private static FirewallingTcpIpConnectionManager getFireWalledConnectionManager(HazelcastInstance hz) {
+        return (FirewallingTcpIpConnectionManager) getConnectionManager(hz);
     }
 }

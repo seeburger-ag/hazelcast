@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,23 @@
 
 package com.hazelcast.client.spi.impl;
 
-import com.hazelcast.client.config.ClientAwsConfig;
 import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.client.connection.AddressProvider;
 import com.hazelcast.client.connection.ClientConnectionManager;
 import com.hazelcast.client.connection.nio.ClientConnection;
 import com.hazelcast.client.impl.ClientImpl;
 import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
-import com.hazelcast.client.impl.LifecycleServiceImpl;
 import com.hazelcast.client.spi.ClientClusterService;
 import com.hazelcast.client.spi.ClientExecutionService;
 import com.hazelcast.config.ListenerConfig;
 import com.hazelcast.core.Client;
 import com.hazelcast.core.Cluster;
-import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.InitialMembershipEvent;
 import com.hazelcast.core.InitialMembershipListener;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
-import com.hazelcast.instance.MemberImpl;
+import com.hazelcast.instance.AbstractMember;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 import com.hazelcast.nio.Address;
@@ -45,85 +41,56 @@ import com.hazelcast.nio.serialization.SerializationService;
 import com.hazelcast.util.Clock;
 import com.hazelcast.util.UuidUtil;
 
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EventListener;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-
-import static com.hazelcast.core.LifecycleEvent.LifecycleState;
 
 /**
  * The {@link ClientClusterService} implementation.
  */
-public class ClientClusterServiceImpl implements ClientClusterService {
+public class ClientClusterServiceImpl extends ClusterListenerSupport {
 
     private static final ILogger LOGGER = Logger.getLogger(ClientClusterService.class);
-
-    private final HazelcastClientInstanceImpl client;
-    private final ClientConnectionManager connectionManager;
-    private final ClusterListenerThread clusterThread;
-    private final AtomicReference<Map<Address, MemberImpl>> membersRef = new AtomicReference<Map<Address, MemberImpl>>();
+    private final AtomicReference<Map<Address, Member>> membersRef = new AtomicReference<Map<Address, Member>>();
     private final ConcurrentMap<String, MembershipListener> listeners = new ConcurrentHashMap<String, MembershipListener>();
 
     public ClientClusterServiceImpl(HazelcastClientInstanceImpl client) {
-        this.client = client;
-        this.connectionManager = client.getConnectionManager();
-        this.clusterThread = createListenerThread();
+        super(client);
         final ClientConfig clientConfig = getClientConfig();
         final List<ListenerConfig> listenerConfigs = client.getClientConfig().getListenerConfigs();
-        if (listenerConfigs != null && !listenerConfigs.isEmpty()) {
-            for (ListenerConfig listenerConfig : listenerConfigs) {
-                EventListener listener = listenerConfig.getImplementation();
-                if (listener == null) {
-                    try {
-                        listener = ClassLoaderUtil.newInstance(clientConfig.getClassLoader(), listenerConfig.getClassName());
-                    } catch (Exception e) {
-                        LOGGER.severe(e);
-                    }
-                }
-                if (listener instanceof MembershipListener) {
-                    addMembershipListenerWithoutInit((MembershipListener) listener);
+        for (ListenerConfig listenerConfig : listenerConfigs) {
+            EventListener listener = listenerConfig.getImplementation();
+            if (listener == null) {
+                try {
+                    listener = ClassLoaderUtil.newInstance(clientConfig.getClassLoader(),
+                            listenerConfig.getClassName());
+                } catch (Exception e) {
+                    LOGGER.severe(e);
                 }
             }
-        }
-    }
-
-    ClusterListenerThread createListenerThread() {
-        final ClientAwsConfig awsConfig = client.getClientConfig().getNetworkConfig().getAwsConfig();
-        final Collection<AddressProvider> addressProvider = new LinkedList<AddressProvider>();
-
-        addressProvider.add(new DefaultAddressProvider(getClientConfig().getNetworkConfig()));
-
-        if (awsConfig != null && awsConfig.isEnabled()) {
-            try {
-                addressProvider.add(new AwsAddressProvider(awsConfig));
-            } catch (NoClassDefFoundError e) {
-                LOGGER.log(Level.WARNING, "hazelcast-cloud.jar might be missing!");
-                throw e;
+            if (listener instanceof MembershipListener) {
+                addMembershipListenerWithoutInit((MembershipListener) listener);
             }
         }
-        final boolean shuffleMemberList = client.getClientProperties().getShuffleMemberList().getBoolean();
-        return new ClusterListenerThread(client.getThreadGroup(), client.getName() + ".cluster-listener",
-                addressProvider, shuffleMemberList);
     }
 
     @Override
-    public MemberImpl getMember(Address address) {
-        final Map<Address, MemberImpl> members = membersRef.get();
+    public Member getMember(Address address) {
+        final Map<Address, Member> members = membersRef.get();
         return members != null ? members.get(address) : null;
     }
 
     @Override
-    public MemberImpl getMember(String uuid) {
-        final Collection<MemberImpl> memberList = getMemberList();
-        for (MemberImpl member : memberList) {
+    public Member getMember(String uuid) {
+        final Collection<Member> memberList = getMemberList();
+        for (Member member : memberList) {
             if (uuid.equals(member.getUuid())) {
                 return member;
             }
@@ -132,15 +99,16 @@ public class ClientClusterServiceImpl implements ClientClusterService {
     }
 
     @Override
-    public Collection<MemberImpl> getMemberList() {
-        final Map<Address, MemberImpl> members = membersRef.get();
-        return members != null ? members.values() : Collections.<MemberImpl>emptySet();
+    public Collection<Member> getMemberList() {
+        final Map<Address, Member> members = membersRef.get();
+        return members != null ? members.values() : Collections.<Member>emptySet();
     }
 
     @Override
     public Address getMasterAddress() {
-        final Collection<MemberImpl> memberList = getMemberList();
-        return !memberList.isEmpty() ? memberList.iterator().next().getAddress() : null;
+        final Collection<Member> memberList = getMemberList();
+        Member member = memberList.iterator().next();
+        return !memberList.isEmpty() ? ((AbstractMember) member).getAddress() : null;
     }
 
     @Override
@@ -155,9 +123,12 @@ public class ClientClusterServiceImpl implements ClientClusterService {
 
     @Override
     public Client getLocalClient() {
-        final String uuid = connectionManager.getUuid();
-        ClientConnection conn = clusterThread.getConnection();
-        return new ClientImpl(uuid, conn != null ? conn.getLocalSocketAddress() : null);
+        Address address = getOwnerConnectionAddress();
+        final ClientConnectionManager cm = client.getConnectionManager();
+        final ClientConnection connection = (ClientConnection) cm.getConnection(address);
+        InetSocketAddress inetSocketAddress = connection != null ? connection.getLocalSocketAddress() : null;
+        final String uuid = getPrincipal().getUuid();
+        return new ClientImpl(uuid, inetSocketAddress);
     }
 
     SerializationService getSerializationService() {
@@ -206,27 +177,10 @@ public class ClientClusterServiceImpl implements ClientClusterService {
         return listeners.remove(registrationId) != null;
     }
 
-    public void start() {
-        clusterThread.init(client);
-        clusterThread.start();
-
-        try {
-            clusterThread.await();
-        } catch (InterruptedException e) {
-            throw new HazelcastException(e);
-        }
+    public void start() throws Exception {
+        init();
+        connectToCluster();
         initMembershipListener();
-        // started
-    }
-
-    public void stop() {
-        clusterThread.shutdown();
-    }
-
-    void fireConnectionEvent(boolean disconnected) {
-        final LifecycleServiceImpl lifecycleService = (LifecycleServiceImpl) client.getLifecycleService();
-        final LifecycleState state = disconnected ? LifecycleState.CLIENT_DISCONNECTED : LifecycleState.CLIENT_CONNECTED;
-        lifecycleService.fireLifecycleEvent(state);
     }
 
     private ClientConfig getClientConfig() {
@@ -235,7 +189,7 @@ public class ClientClusterServiceImpl implements ClientClusterService {
 
     String membersString() {
         StringBuilder sb = new StringBuilder("\n\nMembers [");
-        final Collection<MemberImpl> members = getMemberList();
+        final Collection<Member> members = getMemberList();
         sb.append(members != null ? members.size() : 0);
         sb.append("] {");
         if (members != null) {
@@ -275,11 +229,11 @@ public class ClientClusterServiceImpl implements ClientClusterService {
         });
     }
 
-    Map<Address, MemberImpl> getMembersRef() {
+    Map<Address, Member> getMembersRef() {
         return membersRef.get();
     }
 
-    void setMembersRef(Map<Address, MemberImpl> map) {
+    void setMembersRef(Map<Address, Member> map) {
         membersRef.set(map);
     }
 }

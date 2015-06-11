@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -150,17 +150,17 @@ public class EvictionTest extends HazelcastTestSupport {
     */
     @Test
     public void testIssue585SetWithoutTTL() throws InterruptedException {
-        Config config = new Config();
-        config.getGroupConfig().setName("testIssue585ZeroTTLShouldPreventEvictionWithSet");
-        NearCacheConfig nearCacheConfig = new NearCacheConfig();
-        config.getMapConfig("default").setNearCacheConfig(nearCacheConfig);
-        int n = 1;
-        TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(n);
-        HazelcastInstance h = factory.newHazelcastInstance(config);
-        final IMap<String, String> map = h.getMap("testIssue585ZeroTTLShouldPreventEvictionWithSet");
-        map.set("key", "value", 1, TimeUnit.SECONDS);
-        map.set("key", "value2");
-        assertSizeEventually(0, map);
+        HazelcastInstance node = createHazelcastInstance();
+        IMap<String, String> map = node.getMap(randomMapName());
+
+        String key = "key";
+
+        map.set(key, "value", 1, TimeUnit.SECONDS);
+        // this `set` operation should not affect existing ttl.
+        // so "key" should be expired after 1 seconds.
+        map.set(key, "value2");
+
+        assertSizeEventually(0, map, 300);
     }
 
     /*
@@ -1005,6 +1005,7 @@ public class EvictionTest extends HazelcastTestSupport {
     @Category(NightlyTest.class)
     public void testBackupExpirationDelay_onPromotedReplica() throws Exception {
         final int numberOfItemsToBeAdded = 1000;
+
         // node count should be at least 2 since we are testing a scenario on backups.
         final int nodeCount = 2;
         final int ttlSeconds = 3;
@@ -1096,6 +1097,7 @@ public class EvictionTest extends HazelcastTestSupport {
         assertNull("value of expired key should be null on a replicated partition", value);
     }
 
+
     @Test
     public void testGetAll_doesNotShiftLastUpdateTimeOfEntry() throws Exception {
         HazelcastInstance node = createHazelcastInstance();
@@ -1118,5 +1120,4 @@ public class EvictionTest extends HazelcastTestSupport {
 
     }
 }
-
 

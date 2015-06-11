@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import com.hazelcast.query.impl.AttributeType;
 import com.hazelcast.query.impl.QueryContext;
 import com.hazelcast.query.impl.QueryEntry;
 import com.hazelcast.query.impl.QueryableEntry;
-import com.hazelcast.query.impl.ReflectionHelper;
+import com.hazelcast.query.impl.getters.ReflectionHelper;
 import com.hazelcast.test.HazelcastSerialClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.annotation.QuickTest;
@@ -125,7 +125,7 @@ public class PredicatesTest extends HazelcastTestSupport {
         assertPredicateFalse(and2, 4);
         final Predicate and3 = and(greaterThan(null, 4), lessThan(null, 6), equal(null, 5));
         assertPredicateTrue(and3, 5);
-        final Predicate and4 = and(greaterThan(null, 3), lessThan(null, 6), equal(null, 4));
+        final Predicate and4 = Predicates.and(greaterThan(null, 3), lessThan(null, 6), equal(null, 4));
         assertPredicateFalse(and4, 5);
     }
 

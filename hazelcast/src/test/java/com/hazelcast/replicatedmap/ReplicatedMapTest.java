@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -730,7 +730,7 @@ public class ReplicatedMapTest extends ReplicatedMapBaseTest {
                     map.put(entry.getKey(), entry.getValue());
                 }
             }
-        }, 2, EntryEventType.ADDED, 100, 0.75, map1, map2);
+        }, 60, EntryEventType.ADDED, 100, 0.75, map1, map2);
 
         assertMatchSuccessfulOperationQuota(0.75, map1.size(), map2.size());
     }
@@ -833,7 +833,7 @@ public class ReplicatedMapTest extends ReplicatedMapBaseTest {
                     map.put(entry.getKey(), entry.getValue());
                 }
             }
-        }, 2, EntryEventType.ADDED, testValues.length, 0.75, map1, map2);
+        }, 60, EntryEventType.ADDED, testValues.length, 0.75, map1, map2);
 
         int map2Contains = 0;
         for (AbstractMap.SimpleEntry<Integer, Integer> testValue : testValues) {
@@ -895,7 +895,7 @@ public class ReplicatedMapTest extends ReplicatedMapBaseTest {
                     valuesTestValues.add(entry.getValue());
                 }
             }
-        }, 2, EntryEventType.ADDED, 100, 0.75, map1, map2);
+        }, 60, EntryEventType.ADDED, 100, 0.75, map1, map2);
 
         List<Integer> values1 = copyToList(map1.values());
         List<Integer> values2 = copyToList(map2.values());
@@ -958,7 +958,7 @@ public class ReplicatedMapTest extends ReplicatedMapBaseTest {
                     keySetTestValues.add(entry.getKey());
                 }
             }
-        }, 2, EntryEventType.ADDED, 100, 0.75, map1, map2);
+        }, 60, EntryEventType.ADDED, 100, 0.75, map1, map2);
 
         List<Integer> keySet1 = copyToList(map1.keySet());
         List<Integer> keySet2 = copyToList(map2.keySet());
@@ -1018,7 +1018,7 @@ public class ReplicatedMapTest extends ReplicatedMapBaseTest {
                     map.put(entry.getKey(), entry.getValue());
                 }
             }
-        }, 2, EntryEventType.ADDED, 100, 0.75, map1, map2);
+        }, 60, EntryEventType.ADDED, 100, 0.75, map1, map2);
 
         List<Entry<Integer, Integer>> entrySet1 = copyToList(map1.entrySet());
         List<Entry<Integer, Integer>> entrySet2 = copyToList(map2.entrySet());

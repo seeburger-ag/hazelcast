@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hazelcast.map.impl.mapstore.writebehind;
 
 import com.hazelcast.map.impl.MapServiceContext;
@@ -7,6 +23,7 @@ import com.hazelcast.map.impl.mapstore.MapDataStore;
 import com.hazelcast.map.impl.mapstore.MapDataStores;
 import com.hazelcast.map.impl.mapstore.MapStoreContext;
 import com.hazelcast.map.impl.mapstore.MapStoreManager;
+import com.hazelcast.map.impl.mapstore.writebehind.entry.DelayedEntry;
 import com.hazelcast.spi.ExecutionService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.util.executor.ExecutorType;
@@ -27,11 +44,11 @@ public class WriteBehindManager implements MapStoreManager {
 
     private final ScheduledExecutorService scheduledExecutor;
 
-    private WriteBehindProcessor writeBehindProcessor;
+    private final WriteBehindProcessor writeBehindProcessor;
 
-    private StoreWorker storeWorker;
+    private final StoreWorker storeWorker;
 
-    private String executorName;
+    private final String executorName;
 
     private final MapStoreContext mapStoreContext;
 
@@ -96,13 +113,14 @@ public class WriteBehindManager implements MapStoreManager {
          */
         @Override
         public void afterStore(StoreEvent<DelayedEntry> storeEvent) {
-            final DelayedEntry delayedEntry = storeEvent.getSource();
+            DelayedEntry delayedEntry = storeEvent.getSource();
             int partitionId = delayedEntry.getPartitionId();
             WriteBehindStore writeBehindStore = getWriteBehindStoreOrNull(partitionId);
             if (writeBehindStore == null) {
                 return;
             }
-            writeBehindStore.removeProcessed(delayedEntry);
+
+            writeBehindStore.removeFromStagingArea(delayedEntry);
         }
 
         private WriteBehindStore getWriteBehindStoreOrNull(int partitionId) {

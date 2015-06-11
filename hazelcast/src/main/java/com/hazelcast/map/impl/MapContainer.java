@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package com.hazelcast.map.impl;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.PartitioningStrategyConfig;
 import com.hazelcast.config.WanReplicationRef;
+import com.hazelcast.core.IFunction;
 import com.hazelcast.core.PartitioningStrategy;
 import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.mapstore.MapStoreContext;
@@ -30,6 +31,7 @@ import com.hazelcast.map.impl.record.RecordFactory;
 import com.hazelcast.map.merge.MapMergePolicy;
 import com.hazelcast.nio.ClassLoaderUtil;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.nio.serialization.SerializationService;
 import com.hazelcast.query.impl.IndexService;
 import com.hazelcast.spi.NodeEngine;
 import com.hazelcast.util.ExceptionUtil;
@@ -41,6 +43,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static com.hazelcast.map.impl.ExpirationTimeSetter.calculateMaxIdleMillis;
+import static com.hazelcast.map.impl.ExpirationTimeSetter.calculateTTLMillis;
 import static com.hazelcast.map.impl.ExpirationTimeSetter.pickTTL;
 import static com.hazelcast.map.impl.ExpirationTimeSetter.setExpirationTime;
 import static com.hazelcast.map.impl.SizeEstimators.createNearCacheSizeEstimator;
@@ -49,7 +53,7 @@ import static com.hazelcast.map.impl.mapstore.MapStoreContextFactory.createMapSt
 /**
  * Map container.
  */
-public class MapContainer extends MapContainerSupport {
+public class MapContainer {
 
     private final RecordFactory recordFactory;
 
@@ -71,15 +75,37 @@ public class MapContainer extends MapContainerSupport {
 
     private MapMergePolicy wanMergePolicy;
 
+    private volatile MapConfig mapConfig;
+
+    private final long maxIdleMillis;
+
+    private final long ttlMillisFromConfig;
+
+    private final String name;
+
+    private final String quorumName;
+
+    private final IFunction<Object, Data> toDataFunction = new IFunction<Object, Data>() {
+        @Override
+        public Data apply(Object input) {
+            SerializationService ss = mapStoreContext.getSerializationService();
+            return ss.toData(input, partitioningStrategy);
+        }
+    };
+
     /**
      * Operations which are done in this constructor should obey the rules defined
      * in the method comment {@link com.hazelcast.spi.PostJoinAwareService#getPostJoinOperation()}
      * Otherwise undesired situations, like deadlocks, may appear.
      */
     public MapContainer(final String name, final MapConfig mapConfig, final MapServiceContext mapServiceContext) {
-        super(name, mapConfig);
+        this.name = name;
+        this.mapConfig = mapConfig;
+        this.maxIdleMillis = calculateMaxIdleMillis(mapConfig);
+        this.ttlMillisFromConfig = calculateTTLMillis(mapConfig);
         this.mapServiceContext = mapServiceContext;
         this.partitioningStrategy = createPartitioningStrategy();
+        this.quorumName = mapConfig.getQuorumName();
         final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
         recordFactory = createRecordFactory(nodeEngine);
         initWanReplication(nodeEngine);
@@ -108,7 +134,6 @@ public class MapContainer extends MapContainerSupport {
         }
         return recordFactory;
     }
-
 
     public void initWanReplication(NodeEngine nodeEngine) {
         WanReplicationRef wanReplicationRef = mapConfig.getWanReplicationRef();
@@ -148,14 +173,6 @@ public class MapContainer extends MapContainerSupport {
 
     public MapMergePolicy getWanMergePolicy() {
         return wanMergePolicy;
-    }
-
-    public String addInterceptor(MapInterceptor interceptor) {
-        String id = interceptor.getClass().getName() + interceptor.hashCode();
-
-        addInterceptor(id, interceptor);
-
-        return id;
     }
 
     public void addInterceptor(String id, MapInterceptor interceptor) {
@@ -229,6 +246,34 @@ public class MapContainer extends MapContainerSupport {
 
     public MapStoreContext getMapStoreContext() {
         return mapStoreContext;
+    }
+
+    public MapConfig getMapConfig() {
+        return mapConfig;
+    }
+
+    public void setMapConfig(MapConfig mapConfig) {
+        this.mapConfig = mapConfig;
+    }
+
+    public long getMaxIdleMillis() {
+        return maxIdleMillis;
+    }
+
+    public long getTtlMillisFromConfig() {
+        return ttlMillisFromConfig;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getQuorumName() {
+        return quorumName;
+    }
+
+    public IFunction<Object, Data> toData() {
+        return toDataFunction;
     }
 }
 

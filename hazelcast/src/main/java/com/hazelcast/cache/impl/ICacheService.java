@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,8 +62,7 @@ public interface ICacheService extends ManagedService, RemoteService, MigrationA
 
     Collection<CacheConfig> getCacheConfigs();
 
-    void publishEvent(String cacheName, CacheEventType eventType, Data dataKey, Data dataValue, Data dataOldValue,
-            boolean isOldValueAvailable, int orderKey, int completionId);
+    void publishEvent(CacheEventContext cacheEventContext);
 
     void publishEvent(String cacheName, CacheEventSet eventSet, int orderKey);
 
@@ -81,4 +80,8 @@ public interface ICacheService extends ManagedService, RemoteService, MigrationA
      * Creates cache operations according to the storage-type of the cache
      */
     CacheOperationProvider getCacheOperationProvider(String nameWithPrefix, InMemoryFormat storageType);
+
+    void sendInvalidationEvent(String name, Data key, String sourceUuid);
+
+
 }

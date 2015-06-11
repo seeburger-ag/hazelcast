@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import com.hazelcast.client.nearcache.ClientHeapNearCache;
 import com.hazelcast.client.nearcache.ClientNearCache;
 import com.hazelcast.client.spi.ClientProxy;
 import com.hazelcast.client.spi.EventHandler;
-import com.hazelcast.client.spi.impl.ClientCallFuture;
+import com.hazelcast.client.spi.impl.ClientInvocation;
 import com.hazelcast.config.NearCacheConfig;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.EntryListener;
@@ -32,11 +32,14 @@ import com.hazelcast.core.HazelcastException;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.IMapEvent;
 import com.hazelcast.core.MapEvent;
 import com.hazelcast.core.Member;
 import com.hazelcast.logging.Logger;
 import com.hazelcast.map.EntryProcessor;
 import com.hazelcast.map.MapInterceptor;
+import com.hazelcast.map.MapPartitionLostEvent;
+import com.hazelcast.map.impl.ListenerAdapter;
 import com.hazelcast.map.impl.MapEntrySet;
 import com.hazelcast.map.impl.MapKeySet;
 import com.hazelcast.map.impl.MapValueCollection;
@@ -44,6 +47,8 @@ import com.hazelcast.map.impl.SimpleEntryView;
 import com.hazelcast.map.impl.client.MapAddEntryListenerRequest;
 import com.hazelcast.map.impl.client.MapAddIndexRequest;
 import com.hazelcast.map.impl.client.MapAddInterceptorRequest;
+import com.hazelcast.map.impl.client.MapAddNearCacheEntryListenerRequest;
+import com.hazelcast.map.impl.client.MapAddPartitionLostListenerRequest;
 import com.hazelcast.map.impl.client.MapClearRequest;
 import com.hazelcast.map.impl.client.MapContainsKeyRequest;
 import com.hazelcast.map.impl.client.MapContainsValueRequest;
@@ -65,7 +70,6 @@ import com.hazelcast.map.impl.client.MapKeySetRequest;
 import com.hazelcast.map.impl.client.MapLoadAllKeysRequest;
 import com.hazelcast.map.impl.client.MapLoadGivenKeysRequest;
 import com.hazelcast.map.impl.client.MapLockRequest;
-import com.hazelcast.map.impl.client.MapAddNearCacheEntryListenerRequest;
 import com.hazelcast.map.impl.client.MapPutAllRequest;
 import com.hazelcast.map.impl.client.MapPutIfAbsentRequest;
 import com.hazelcast.map.impl.client.MapPutRequest;
@@ -74,6 +78,7 @@ import com.hazelcast.map.impl.client.MapQueryRequest;
 import com.hazelcast.map.impl.client.MapRemoveEntryListenerRequest;
 import com.hazelcast.map.impl.client.MapRemoveIfSameRequest;
 import com.hazelcast.map.impl.client.MapRemoveInterceptorRequest;
+import com.hazelcast.map.impl.client.MapRemovePartitionLostListenerRequest;
 import com.hazelcast.map.impl.client.MapRemoveRequest;
 import com.hazelcast.map.impl.client.MapReplaceIfSameRequest;
 import com.hazelcast.map.impl.client.MapReplaceRequest;
@@ -83,6 +88,8 @@ import com.hazelcast.map.impl.client.MapTryPutRequest;
 import com.hazelcast.map.impl.client.MapTryRemoveRequest;
 import com.hazelcast.map.impl.client.MapUnlockRequest;
 import com.hazelcast.map.impl.client.MapValuesRequest;
+import com.hazelcast.map.listener.MapListener;
+import com.hazelcast.map.listener.MapPartitionLostListener;
 import com.hazelcast.mapreduce.Collator;
 import com.hazelcast.mapreduce.CombinerFactory;
 import com.hazelcast.mapreduce.Job;
@@ -101,13 +108,14 @@ import com.hazelcast.query.PagingPredicate;
 import com.hazelcast.query.PagingPredicateAccessor;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.spi.impl.PortableEntryEvent;
+import com.hazelcast.spi.impl.PortableMapPartitionLostEvent;
 import com.hazelcast.util.ExceptionUtil;
 import com.hazelcast.util.IterationType;
+import com.hazelcast.util.Preconditions;
 import com.hazelcast.util.QueryResultSet;
 import com.hazelcast.util.SortedQueryResultSet;
 import com.hazelcast.util.SortingUtil;
 import com.hazelcast.util.ThreadUtil;
-import com.hazelcast.util.ValidationUtil;
 import com.hazelcast.util.executor.CompletedFuture;
 import com.hazelcast.util.executor.DelegatingFuture;
 
@@ -126,9 +134,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.hazelcast.util.ValidationUtil.checkNotNull;
+import static com.hazelcast.map.impl.ListenerAdapters.createListenerAdapter;
+import static com.hazelcast.util.Preconditions.checkNotNull;
 
-public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V> {
+public class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V> {
 
     protected static final String NULL_KEY_IS_NOT_ALLOWED = "Null key is not allowed!";
     protected static final String NULL_VALUE_IS_NOT_ALLOWED = "Null value is not allowed!";
@@ -256,7 +265,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         final MapGetRequest request = new MapGetRequest(name, keyData, ThreadUtil.getThreadId());
         request.setAsAsync();
         try {
-            final ICompletableFuture future = getContext().getInvocationService().invokeOnKeyOwner(request, keyData);
+            final ICompletableFuture future = invokeOnKeyOwner(request, keyData);
             final DelegatingFuture<V> delegatingFuture = new DelegatingFuture<V>(future, getContext().getSerializationService());
             delegatingFuture.andThen(new ExecutionCallback<V>() {
                 @Override
@@ -277,6 +286,12 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         }
     }
 
+    private ICompletableFuture invokeOnKeyOwner(ClientRequest request, Data keyData) {
+        int partitionId = getContext().getPartitionService().getPartitionId(keyData);
+        final ClientInvocation clientInvocation = new ClientInvocation(getClient(), request, partitionId);
+        return clientInvocation.invoke();
+    }
+
     @Override
     public Future<V> putAsync(final K key, final V value) {
         return putAsync(key, value, -1, TimeUnit.MILLISECONDS);
@@ -294,7 +309,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
                 ThreadUtil.getThreadId(), getTimeInMillis(ttl, timeunit));
         request.setAsAsync();
         try {
-            final ICompletableFuture future = getContext().getInvocationService().invokeOnKeyOwner(request, keyData);
+            final ICompletableFuture future = invokeOnKeyOwner(request, keyData);
             return new DelegatingFuture<V>(future, getContext().getSerializationService());
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);
@@ -309,7 +324,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         MapRemoveRequest request = new MapRemoveRequest(name, keyData, ThreadUtil.getThreadId());
         request.setAsAsync();
         try {
-            final ICompletableFuture future = getContext().getInvocationService().invokeOnKeyOwner(request, keyData);
+            final ICompletableFuture future = invokeOnKeyOwner(request, keyData);
             return new DelegatingFuture<V>(future, getContext().getSerializationService());
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);
@@ -483,19 +498,34 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
-    public String addLocalEntryListener(EntryListener<K, V> listener) {
+    public String addLocalEntryListener(MapListener listener) {
         throw new UnsupportedOperationException("Locality is ambiguous for client!!!");
     }
 
     @Override
-    public String addLocalEntryListener(EntryListener<K, V> listener,
+    public String addLocalEntryListener(EntryListener listener) {
+        throw new UnsupportedOperationException("Locality is ambiguous for client!!!");
+    }
+
+    @Override
+    public String addLocalEntryListener(MapListener listener,
                                         Predicate<K, V> predicate, boolean includeValue) {
         throw new UnsupportedOperationException("Locality is ambiguous for client!!!");
     }
 
     @Override
-    public String addLocalEntryListener(EntryListener<K, V> listener,
+    public String addLocalEntryListener(EntryListener listener, Predicate<K, V> predicate, boolean includeValue) {
+        throw new UnsupportedOperationException("Locality is ambiguous for client!!!");
+    }
+
+    @Override
+    public String addLocalEntryListener(MapListener listener,
                                         Predicate<K, V> predicate, K key, boolean includeValue) {
+        throw new UnsupportedOperationException("Locality is ambiguous for client!!!");
+    }
+
+    @Override
+    public String addLocalEntryListener(EntryListener listener, Predicate<K, V> predicate, K key, boolean includeValue) {
         throw new UnsupportedOperationException("Locality is ambiguous for client!!!");
     }
 
@@ -511,7 +541,14 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
-    public String addEntryListener(EntryListener<K, V> listener, boolean includeValue) {
+    public String addEntryListener(MapListener listener, boolean includeValue) {
+        MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, includeValue);
+        EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
+        return listen(request, handler);
+    }
+
+    @Override
+    public String addEntryListener(EntryListener listener, boolean includeValue) {
         MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, includeValue);
         EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
         return listen(request, handler);
@@ -524,7 +561,20 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
-    public String addEntryListener(EntryListener<K, V> listener, K key, boolean includeValue) {
+    public String addPartitionLostListener(MapPartitionLostListener listener) {
+        final MapAddPartitionLostListenerRequest request = new MapAddPartitionLostListenerRequest(name);
+        final EventHandler<PortableMapPartitionLostEvent> handler = new ClientMapPartitionLostEventHandler(listener);
+        return listen(request, handler);
+    }
+
+    @Override
+    public boolean removePartitionLostListener(String id) {
+        final MapRemovePartitionLostListenerRequest request = new MapRemovePartitionLostListenerRequest(name, id);
+        return stopListening(request, id);
+    }
+
+    @Override
+    public String addEntryListener(MapListener listener, K key, boolean includeValue) {
         final Data keyData = toData(key);
         MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, keyData, includeValue);
         EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
@@ -532,7 +582,15 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
-    public String addEntryListener(EntryListener<K, V> listener, Predicate<K, V> predicate, K key, boolean includeValue) {
+    public String addEntryListener(EntryListener listener, K key, boolean includeValue) {
+        final Data keyData = toData(key);
+        MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, keyData, includeValue);
+        EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
+        return listen(request, keyData, handler);
+    }
+
+    @Override
+    public String addEntryListener(MapListener listener, Predicate<K, V> predicate, K key, boolean includeValue) {
         final Data keyData = toData(key);
         MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, keyData, includeValue, predicate);
         EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
@@ -540,7 +598,22 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
-    public String addEntryListener(EntryListener<K, V> listener, Predicate<K, V> predicate, boolean includeValue) {
+    public String addEntryListener(EntryListener listener, Predicate<K, V> predicate, K key, boolean includeValue) {
+        final Data keyData = toData(key);
+        MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, keyData, includeValue, predicate);
+        EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
+        return listen(request, keyData, handler);
+    }
+
+    @Override
+    public String addEntryListener(MapListener listener, Predicate<K, V> predicate, boolean includeValue) {
+        MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, null, includeValue, predicate);
+        EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
+        return listen(request, null, handler);
+    }
+
+    @Override
+    public String addEntryListener(EntryListener listener, Predicate<K, V> predicate, boolean includeValue) {
         MapAddEntryListenerRequest request = new MapAddEntryListenerRequest(name, null, includeValue, predicate);
         EventHandler<PortableEntryEvent> handler = createHandler(listener, includeValue);
         return listen(request, null, handler);
@@ -573,7 +646,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
 
     @Override
     public void evictAll() {
-        clearNearCache();
+        invalidateNearCache();
         MapEvictAllRequest request = new MapEvictAllRequest(name);
         invoke(request);
     }
@@ -581,7 +654,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     @Override
     public void loadAll(boolean replaceExistingValues) {
         if (replaceExistingValues) {
-            clearNearCache();
+            invalidateNearCache();
         }
         final MapLoadAllKeysRequest request = new MapLoadAllKeysRequest(name, replaceExistingValues);
         invoke(request);
@@ -630,9 +703,10 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Map<K, V> getAll(Set<K> keys) {
         initNearCache();
-        Set<Data> keySet = new HashSet(keys.size());
+        Set<Data> keySet = new HashSet<Data>(keys.size());
         Map<K, V> result = new HashMap<K, V>();
         for (Object key : keys) {
             keySet.add(toData(key));
@@ -669,10 +743,11 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     public Collection<V> values() {
         MapValuesRequest request = new MapValuesRequest(name);
         MapValueCollection mapValueCollection = invoke(request);
+
         Collection<Data> collectionData = mapValueCollection.getValues();
         Collection<V> collection = new ArrayList<V>(collectionData.size());
         for (Data data : collectionData) {
-            final V value = toObject(data);
+            V value = toObject(data);
             collection.add(value);
         }
         return collection;
@@ -682,6 +757,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     public Set<Entry<K, V>> entrySet() {
         MapEntrySetRequest request = new MapEntrySetRequest(name);
         MapEntrySet result = invoke(request);
+
         Set<Entry<K, V>> entrySet = new HashSet<Entry<K, V>>();
         Set<Entry<Data, Data>> entries = result.getEntrySet();
         for (Entry<Data, Data> dataEntry : entries) {
@@ -695,6 +771,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Set<K> keySet(Predicate predicate) {
         PagingPredicate pagingPredicate = null;
         if (predicate instanceof PagingPredicate) {
@@ -718,11 +795,9 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
             return keySet;
         }
 
-
         final Comparator<Entry> comparator = SortingUtil.newComparator(pagingPredicate.getComparator(), IterationType.KEY);
         final SortedQueryResultSet sortedResult = new SortedQueryResultSet(comparator, IterationType.KEY,
                 pagingPredicate.getPageSize());
-
 
         final Iterator<Entry> iterator = result.rawIterator();
         while (iterator.hasNext()) {
@@ -738,6 +813,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Set<Entry<K, V>> entrySet(Predicate predicate) {
         PagingPredicate pagingPredicate = null;
         if (predicate instanceof PagingPredicate) {
@@ -774,33 +850,37 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
 
     @Override
     public Collection<V> values(Predicate predicate) {
-        PagingPredicate pagingPredicate = null;
         if (predicate instanceof PagingPredicate) {
-            pagingPredicate = (PagingPredicate) predicate;
-            pagingPredicate.setIterationType(IterationType.VALUE);
-
-            if (pagingPredicate.getPage() > 0 && pagingPredicate.getAnchor() == null) {
-                pagingPredicate.previousPage();
-                values(pagingPredicate);
-                pagingPredicate.nextPage();
-            }
+            return valuesForPagingPredicate((PagingPredicate) predicate);
         }
+
         MapQueryRequest request = new MapQueryRequest(name, predicate, IterationType.VALUE);
         QueryResultSet result = invoke(request);
 
-        if (pagingPredicate == null) {
-            final ArrayList<V> values = new ArrayList<V>(result.size());
-            for (Object data : result) {
-                V value = toObject(data);
-                values.add(value);
-            }
-            return values;
+        List<V> values = new ArrayList<V>(result.size());
+        for (Object data : result) {
+            V value = toObject(data);
+            values.add(value);
+        }
+        return values;
+    }
+
+    private Collection<V> valuesForPagingPredicate(PagingPredicate pagingPredicate) {
+        pagingPredicate.setIterationType(IterationType.VALUE);
+
+        if (pagingPredicate.getPage() > 0 && pagingPredicate.getAnchor() == null) {
+            pagingPredicate.previousPage();
+            values(pagingPredicate);
+            pagingPredicate.nextPage();
         }
 
+        MapQueryRequest request = new MapQueryRequest(name, pagingPredicate, IterationType.VALUE);
+        QueryResultSet result = invoke(request);
+
         List<Entry<Object, V>> valueEntryList = new ArrayList<Entry<Object, V>>(result.size());
-        final Iterator<Entry> iterator = result.rawIterator();
+        Iterator<Entry> iterator = result.rawIterator();
         while (iterator.hasNext()) {
-            final Entry entry = iterator.next();
+            Entry entry = iterator.next();
             K key = toObject(entry.getKey());
             V value = toObject(entry.getValue());
             valueEntryList.add(new AbstractMap.SimpleImmutableEntry<Object, V>(key, value));
@@ -810,16 +890,18 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         if (valueEntryList.size() > pagingPredicate.getPageSize()) {
             valueEntryList = valueEntryList.subList(0, pagingPredicate.getPageSize());
         }
+
         Entry anchor = null;
         if (valueEntryList.size() != 0) {
             anchor = valueEntryList.get(valueEntryList.size() - 1);
         }
         PagingPredicateAccessor.setPagingPredicateAnchor(pagingPredicate, anchor);
 
-        final ArrayList<V> values = new ArrayList<V>(valueEntryList.size());
-        for (Entry<Object, V> objectVEntry : valueEntryList) {
-            values.add(objectVEntry.getValue());
+        ArrayList<V> values = new ArrayList<V>(valueEntryList.size());
+        for (Entry<Object, V> entry : valueEntryList) {
+            values.add(entry.getValue());
         }
+
         return values;
     }
 
@@ -863,8 +945,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         final MapExecuteOnKeyRequest request = new MapExecuteOnKeyRequest(name, entryProcessor, keyData);
         request.setAsSubmitToKey();
         try {
-            final ClientCallFuture future = (ClientCallFuture) getContext().getInvocationService().
-                    invokeOnKeyOwner(request, keyData);
+            final ICompletableFuture future = invokeOnKeyOwner(request, keyData);
             future.andThen(callback);
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);
@@ -877,7 +958,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         final MapExecuteOnKeyRequest request = new MapExecuteOnKeyRequest(name, entryProcessor, keyData);
         request.setAsSubmitToKey();
         try {
-            final ICompletableFuture future = getContext().getInvocationService().invokeOnKeyOwner(request, keyData);
+            final ICompletableFuture future = invokeOnKeyOwner(request, keyData);
             return new DelegatingFuture(future, getContext().getSerializationService());
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);
@@ -927,7 +1008,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
                                                     JobTracker jobTracker) {
 
         try {
-            ValidationUtil.isNotNull(jobTracker, "jobTracker");
+            Preconditions.isNotNull(jobTracker, "jobTracker");
             KeyValueSource<K, V> keyValueSource = KeyValueSource.fromMap(this);
             Job<K, V> job = jobTracker.newJob(keyValueSource);
             Mapper mapper = aggregation.getMapper(supplier);
@@ -1029,58 +1110,98 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         return timeunit != null ? timeunit.toMillis(time) : time;
     }
 
-    private EventHandler<PortableEntryEvent> createHandler(final EntryListener<K, V> listener, final boolean includeValue) {
-        return new EventHandler<PortableEntryEvent>() {
-            public void handle(PortableEntryEvent event) {
-                Member member = getContext().getClusterService().getMember(event.getUuid());
-                switch (event.getEventType()) {
-                    case ADDED:
-                        listener.entryAdded(createEntryEvent(event, member));
-                        break;
-                    case REMOVED:
-                        listener.entryRemoved(createEntryEvent(event, member));
-                        break;
-                    case UPDATED:
-                        listener.entryUpdated(createEntryEvent(event, member));
-                        break;
-                    case EVICTED:
-                        listener.entryEvicted(createEntryEvent(event, member));
-                        break;
-                    case EVICT_ALL:
-                        listener.mapEvicted(createMapEvent(event, member));
-                        break;
-                    case CLEAR_ALL:
-                        listener.mapCleared(createMapEvent(event, member));
-                        break;
-                    default:
-                        throw new IllegalArgumentException("Not a known event type " + event.getEventType());
-                }
+    private EventHandler<PortableEntryEvent> createHandler(final Object listener, final boolean includeValue) {
+        final ListenerAdapter listenerAdaptor = createListenerAdapter(listener);
+        return new ClientMapEventHandler(listenerAdaptor, includeValue);
+    }
+
+    private class ClientMapEventHandler implements EventHandler<PortableEntryEvent> {
+
+        private final ListenerAdapter listenerAdapter;
+        private final boolean includeValue;
+
+        public ClientMapEventHandler(ListenerAdapter listenerAdapter, boolean includeValue) {
+            this.listenerAdapter = listenerAdapter;
+            this.includeValue = includeValue;
+        }
+
+        public void handle(PortableEntryEvent event) {
+            Member member = getContext().getClusterService().getMember(event.getUuid());
+            final IMapEvent iMapEvent = createIMapEvent(event, member);
+            listenerAdapter.onEvent(iMapEvent);
+        }
+
+        private IMapEvent createIMapEvent(PortableEntryEvent event, Member member) {
+            IMapEvent iMapEvent;
+            switch (event.getEventType()) {
+                case ADDED:
+                case REMOVED:
+                case UPDATED:
+                case EVICTED:
+                case MERGED:
+                    iMapEvent = createEntryEvent(event, member);
+                    break;
+                case EVICT_ALL:
+                case CLEAR_ALL:
+                    iMapEvent = createMapEvent(event, member);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Not a known event type " + event.getEventType());
             }
 
-            private MapEvent createMapEvent(PortableEntryEvent event, Member member) {
-                return new MapEvent(name, member, event.getEventType().getType(), event.getNumberOfAffectedEntries());
-            }
+            return iMapEvent;
+        }
 
-            private EntryEvent<K, V> createEntryEvent(PortableEntryEvent event, Member member) {
-                V value = null;
-                V oldValue = null;
-                if (includeValue) {
-                    value = toObject(event.getValue());
-                    oldValue = toObject(event.getOldValue());
-                }
-                K key = toObject(event.getKey());
-                return new EntryEvent<K, V>(name, member,
-                        event.getEventType().getType(), key, oldValue, value);
-            }
+        private MapEvent createMapEvent(PortableEntryEvent event, Member member) {
+            return new MapEvent(name, member, event.getEventType().getType(), event.getNumberOfAffectedEntries());
+        }
 
-            @Override
-            public void beforeListenerRegister() {
+        private EntryEvent<K, V> createEntryEvent(PortableEntryEvent event, Member member) {
+            V value = null;
+            V oldValue = null;
+            V mergingValue = null;
+            if (includeValue) {
+                value = toObject(event.getValue());
+                oldValue = toObject(event.getOldValue());
+                mergingValue = toObject(event.getMergingValue());
             }
+            K key = toObject(event.getKey());
+            return new EntryEvent<K, V>(name, member,
+                    event.getEventType().getType(), key, oldValue, value, mergingValue);
+        }
 
-            @Override
-            public void onListenerRegister() {
-            }
-        };
+        @Override
+        public void beforeListenerRegister() {
+        }
+
+        @Override
+        public void onListenerRegister() {
+        }
+    }
+
+    private class ClientMapPartitionLostEventHandler implements EventHandler<PortableMapPartitionLostEvent> {
+
+        private MapPartitionLostListener listener;
+
+        public ClientMapPartitionLostEventHandler(MapPartitionLostListener listener) {
+            this.listener = listener;
+        }
+
+        @Override
+        public void handle(PortableMapPartitionLostEvent event) {
+            final Member member = getContext().getClusterService().getMember(event.getUuid());
+            listener.partitionLost(new MapPartitionLostEvent(name, member, -1, event.getPartitionId()));
+        }
+
+        @Override
+        public void beforeListenerRegister() {
+
+        }
+
+        @Override
+        public void onListenerRegister() {
+
+        }
     }
 
     private void invalidateNearCache(Data key) {
@@ -1103,12 +1224,6 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
             for (Data key : keys) {
                 nearCache.invalidate(key);
             }
-        }
-    }
-
-    private void clearNearCache() {
-        if (nearCache != null) {
-            nearCache.clear();
         }
     }
 
@@ -1136,6 +1251,7 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
                         case ADDED:
                         case REMOVED:
                         case UPDATED:
+                        case MERGED:
                         case EVICTED:
                             final Data key = event.getKey();
                             nearCache.remove(key);
@@ -1151,16 +1267,16 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
 
                 @Override
                 public void beforeListenerRegister() {
-                    nearCache.clear();
+                    invalidateNearCache();
                 }
 
                 @Override
                 public void onListenerRegister() {
-                    nearCache.clear();
+                    invalidateNearCache();
                 }
             };
 
-            String registrationId = getContext().getListenerService().listen(request, null, handler);
+            String registrationId = getContext().getListenerService().startListening(request, null, handler);
             nearCache.setId(registrationId);
         } catch (Exception e) {
             Logger.getLogger(ClientHeapNearCache.class).severe(

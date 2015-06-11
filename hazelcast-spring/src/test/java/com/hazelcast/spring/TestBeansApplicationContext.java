@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ContextConfiguration;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(CustomSpringJUnit4ClassRunner.class)
@@ -50,7 +51,7 @@ public class TestBeansApplicationContext {
     private ApplicationContext context;
 
     @Test
-    public void test() {
+    public void testApplicationContext() {
         assertTrue(Hazelcast.getAllHazelcastInstances().isEmpty());
         assertTrue(HazelcastClient.getAllHazelcastClients().isEmpty());
 
@@ -66,12 +67,13 @@ public class TestBeansApplicationContext {
         context.getBean("client");
         assertEquals(3, HazelcastClient.getAllHazelcastClients().size());
         HazelcastClientProxy client = (HazelcastClientProxy) HazelcastClient.getAllHazelcastClients().iterator().next();
-        assertTrue(client.getClientConfig().getManagedContext() instanceof SpringManagedContext);
+        assertNull(client.getClientConfig().getManagedContext());
+
 
         HazelcastInstance instance = (HazelcastInstance) context.getBean("instance");
         assertEquals(1, Hazelcast.getAllHazelcastInstances().size());
         assertEquals(instance, Hazelcast.getAllHazelcastInstances().iterator().next());
-        assertTrue(instance.getConfig().getManagedContext() instanceof SpringManagedContext);
+        assertNull(instance.getConfig().getManagedContext());
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@ public interface EvictableStore<A, E extends Evictable> {
      * candidates from the internal data structures.
      *
      * @param evictionCandidates Multiple {@link EvictionCandidate} to be evicted
+     * @param evictionListener   {@link EvictionListener} to listen evicted entries
      *
      * @return evicted entry count
      */
-    <C extends EvictionCandidate<A, E>> int evict(Iterable<C> evictionCandidates);
+    <C extends EvictionCandidate<A, E>> int evict(Iterable<C> evictionCandidates,
+                                                  EvictionListener<A, E> evictionListener);
 
 }

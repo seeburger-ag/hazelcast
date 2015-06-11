@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ package com.hazelcast.cache.impl;
  * <p>Note: This interface is for internal usage and shouldn't be used in user code.</p>
  *
  * @see com.hazelcast.cache.impl.CacheEventListenerAdaptor
- * @see AbstractInternalCacheProxy.CacheCompletionEventListener
- *
  */
 public interface CacheEventListener {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import com.hazelcast.spi.annotation.Beta;
  * </p>
  * <p>
  * A simple Combiner implementation in combination with a {@link Reducer} could look
- * like that avg-function implementation:
+ * like this avg-function implementation.
  * <pre>
  * public class AvgCombiner implements Combiner&lt;Integer, Tuple&lt;Long, Long>>
  * {
@@ -81,26 +81,26 @@ public abstract class Combiner<ValueIn, ValueOut> {
 
     /**
      * This method is called before the first value is submitted to this Combiner instance.
-     * It can be used to setup any internal needed state before starting to combining the
+     * You can use it to set up any internal needed state before combining the
      * actual values.<br/>
-     * The method is called only one time and is not called again before starting a new chunk.
+     * The method is called only one time; it is not called again when starting a new chunk.
      */
     public void beginCombine() {
     }
 
     /**
      * This method is called to supply values to be combined into an intermediate result chunk.<br/>
-     * The combine method might be called multiple times so the combined chunk needs to be hold
+     * The combine method might be called multiple times so the combined chunk needs to be held
      * internally in a member state of the Combiner.<br/>
-     * After this method is called you need to reset the internal state to prepare combining of
+     * After this method is called you need to {@link #reset()} the internal state to prepare for combining of
      * the next chunk.
      *
-     * @param value value to be reduced
+     * @param value value to be reduced (combined into an intermediate result chunk)
      */
     public abstract void combine(ValueIn value);
 
     /**
-     * Creates a chunk of {@link ValueOut} to be send to the {@link Reducer} for the according
+     * Creates a chunk of {@link ValueOut} to be sent to the {@link Reducer} for the according
      * key.
      *
      * @return chunk of intermediate data
@@ -108,19 +108,17 @@ public abstract class Combiner<ValueIn, ValueOut> {
     public abstract ValueOut finalizeChunk();
 
     /**
-     * This method is called always after a chunk of data is retrieved. It is used to reset
+     * This method is always called after a chunk of data is retrieved. It resets
      * the internal state of the Combiner. It is equivalent to resetting the state inside of
-     * {@link #finalizeChunk()} as with the last version of the API.
+     * {@link #finalizeChunk()}, as with the last version of the API.
      */
     public void reset() {
     }
 
     /**
-     * This method is called after mapping phase is over. It is intended to be overridden
-     * to cleanup internal state and free possible resources.
      * This method is called after the mapping phase on the local node is over. No further combining
-     * runs will take place after this call. This method is intended to be overridden to clean up
-     * internal state and free possible acquired external resources.
+     * runs will take place after this call. You override this method to clean up the
+     * internal state and free possibly acquired external resources.
      */
     public void finalizeCombine() {
     }

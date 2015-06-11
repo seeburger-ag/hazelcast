@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,22 @@
 
 package com.hazelcast.config;
 
+import com.hazelcast.map.listener.MapPartitionLostListener;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.annotation.QuickTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
+import java.util.EventListener;
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 @RunWith(HazelcastParallelClassRunner.class)
 @Category(QuickTest.class)
@@ -220,6 +226,42 @@ public class MapConfigTest {
         assertNotNull(config.getMapConfig("test").getMapStoreConfig());
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void setAsyncBackupCount_whenItsNegative(){
+        MapConfig config = new MapConfig();
+        config.setAsyncBackupCount(-1);
+    }
+
+    @Test
+    public void setAsyncBackupCount_whenItsZero(){
+        MapConfig config = new MapConfig();
+        config.setAsyncBackupCount(0);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void setAsyncBackupCount_whenTooLarge(){
+        MapConfig config = new MapConfig();
+        config.setAsyncBackupCount(200); //max allowed is 6..
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void setBackupCount_whenItsNegative(){
+        MapConfig config = new MapConfig();
+        config.setBackupCount(-1);
+    }
+
+    @Test
+    public void setBackupCount_whenItsZero(){
+        MapConfig config = new MapConfig();
+        config.setBackupCount(0);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void setBackupCount_tooLarge(){
+        MapConfig config = new MapConfig();
+        config.setBackupCount(200); //max allowed is 6..
+    }
+
     /**
      * Test method for {@link com.hazelcast.config.MapStoreConfig#setWriteBatchSize(int)}.
      */
@@ -235,4 +277,74 @@ public class MapConfigTest {
     public void testReadOnlyMapStoreConfigSetInitialLoadMode() {
         new MapStoreConfigReadOnly(new MapStoreConfig()).setInitialLoadMode(MapStoreConfig.InitialLoadMode.EAGER);
     }
+
+    @Test
+    public void testMapPartitionLostListenerConfig() {
+        final MapConfig mapConfig = new MapConfig();
+        final MapPartitionLostListener listener = mock(MapPartitionLostListener.class);
+        mapConfig.addMapPartitionLostListenerConfig(new MapPartitionLostListenerConfig(listener));
+        final MapPartitionLostListenerConfig listenerConfig = new MapPartitionLostListenerConfig();
+        listenerConfig.setImplementation(listener);
+        mapConfig.addMapPartitionLostListenerConfig(listenerConfig);
+
+        List<MapPartitionLostListenerConfig> listenerConfigs = mapConfig.getPartitionLostListenerConfigs();
+        assertEquals(2, listenerConfigs.size());
+        assertEquals(listener, listenerConfigs.get(0).getImplementation());
+        assertEquals(listener, listenerConfigs.get(1).getImplementation());
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testMapPartitionLostListenerReadOnlyConfig_withClassName() {
+        final MapPartitionLostListenerConfigReadOnly readOnly = new MapPartitionLostListenerConfig().getAsReadOnly();
+        readOnly.setClassName("com.hz");
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testMapPartitionLostListenerReadOnlyConfig_withImplementation() {
+        final MapPartitionLostListener listener = mock(MapPartitionLostListener.class);
+        final MapPartitionLostListenerConfig listenerConfig = new MapPartitionLostListenerConfig(listener);
+        final MapPartitionLostListenerConfigReadOnly readOnly = listenerConfig.getAsReadOnly();
+        assertEquals(listener, readOnly.getImplementation());
+        readOnly.setImplementation(mock(MapPartitionLostListener.class));
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void testMapPartitionLostListenerReadOnlyConfig_withEventListenerImplementation() {
+        final MapPartitionLostListenerConfigReadOnly readOnly = new MapPartitionLostListenerConfig().getAsReadOnly();
+        readOnly.setImplementation(mock(EventListener.class));
+    }
+
+    @Test
+    public void testMapPartitionLostListener_equalsWithClassName() {
+        final MapPartitionLostListenerConfig config1 = new MapPartitionLostListenerConfig();
+        config1.setClassName("com.hz");
+
+        final MapPartitionLostListenerConfig config2 = new MapPartitionLostListenerConfig();
+        config2.setClassName("com.hz");
+
+        final MapPartitionLostListenerConfig config3 = new MapPartitionLostListenerConfig();
+        config3.setClassName("com.hz2");
+
+        assertEquals(config1, config2);
+        assertNotEquals(config1, config3);
+        assertNotEquals(config2, config3);
+    }
+
+    @Test
+    public void testMapPartitionLostListener_equalsWithImplementation() {
+        final MapPartitionLostListener listener = mock(MapPartitionLostListener.class);
+
+        final MapPartitionLostListenerConfig config1 = new MapPartitionLostListenerConfig();
+        config1.setImplementation(listener);
+
+        final MapPartitionLostListenerConfig config2 = new MapPartitionLostListenerConfig();
+        config2.setImplementation(listener);
+
+        final MapPartitionLostListenerConfig config3 = new MapPartitionLostListenerConfig();
+
+        assertEquals(config1, config2);
+        assertNotEquals(config1, config3);
+        assertNotEquals(config2, config3);
+    }
+
 }

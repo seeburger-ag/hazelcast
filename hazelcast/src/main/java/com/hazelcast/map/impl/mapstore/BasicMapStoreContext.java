@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,28 +19,18 @@ package com.hazelcast.map.impl.mapstore;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapStoreConfig;
-import com.hazelcast.config.MaxSizeConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.PartitioningStrategy;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.map.impl.MapContainer;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.MapStoreWrapper;
-import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.SerializationService;
-import com.hazelcast.spi.ExecutionService;
 import com.hazelcast.spi.NodeEngine;
+import com.hazelcast.util.IterableUtil;
 
-import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
-import static com.hazelcast.config.MaxSizeConfig.MaxSizePolicy.PER_NODE;
-import static com.hazelcast.map.impl.eviction.MaxSizeChecker.getApproximateMaxSize;
 import static com.hazelcast.map.impl.mapstore.MapStoreManagers.createWriteBehindManager;
 import static com.hazelcast.map.impl.mapstore.MapStoreManagers.createWriteThroughManager;
 import static com.hazelcast.map.impl.mapstore.StoreConstructor.createStore;
@@ -51,12 +41,6 @@ import static com.hazelcast.map.impl.mapstore.StoreConstructor.createStore;
  */
 final class BasicMapStoreContext implements MapStoreContext {
 
-    private static final int INITIAL_KEYS_REMOVE_DELAY_MINUTES = 20;
-
-    private static final String INITIAL_KEY_LOAD_EXECUTOR = "hz:trigger-initial-load";
-
-    private final Map<Data, Object> initialKeys = new ConcurrentHashMap<Data, Object>();
-
     private String mapName;
 
     private MapStoreManager mapStoreManager;
@@ -65,13 +49,7 @@ final class BasicMapStoreContext implements MapStoreContext {
 
     private MapServiceContext mapServiceContext;
 
-    private PartitioningStrategy partitioningStrategy;
-
     private MapStoreConfig mapStoreConfig;
-
-    private MaxSizeConfig maxSizeConfig;
-
-    private volatile Future<Boolean> initialKeyLoader;
 
     private BasicMapStoreContext() {
     }
@@ -79,16 +57,10 @@ final class BasicMapStoreContext implements MapStoreContext {
     @Override
     public void start() {
         mapStoreManager.start();
-
-        final Callable<Boolean> task = new TriggerInitialKeyLoad();
-        initialKeyLoader = executeTask(INITIAL_KEY_LOAD_EXECUTOR, task);
     }
 
     @Override
     public void stop() {
-        if (initialKeyLoader != null) {
-            initialKeyLoader.cancel(true);
-        }
         mapStoreManager.stop();
     }
 
@@ -97,6 +69,11 @@ final class BasicMapStoreContext implements MapStoreContext {
         final MapStoreConfig mapStoreConfig = getMapStoreConfig();
         return mapStoreConfig != null && mapStoreConfig.isEnabled()
                 && mapStoreConfig.getWriteDelaySeconds() > 0;
+    }
+
+    @Override
+    public boolean isMapLoader() {
+        return storeWrapper.isMapLoader();
     }
 
     @Override
@@ -125,18 +102,8 @@ final class BasicMapStoreContext implements MapStoreContext {
     }
 
     @Override
-    public void waitInitialLoadFinish() throws Exception {
-        initialKeyLoader.get();
-    }
-
-    @Override
     public MapStoreManager getMapStoreManager() {
         return mapStoreManager;
-    }
-
-    @Override
-    public Map<Data, Object> getInitialKeys() {
-        return initialKeys;
     }
 
     @Override
@@ -151,7 +118,6 @@ final class BasicMapStoreContext implements MapStoreContext {
         final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
         final PartitioningStrategy partitioningStrategy = mapContainer.getPartitioningStrategy();
         final MapConfig mapConfig = mapContainer.getMapConfig();
-        final MaxSizeConfig maxSizeConfig = mapConfig.getMaxSizeConfig();
         final MapStoreConfig mapStoreConfig = mapConfig.getMapStoreConfig();
         final ClassLoader configClassLoader = nodeEngine.getConfigClassLoader();
         // create store.
@@ -162,7 +128,6 @@ final class BasicMapStoreContext implements MapStoreContext {
 
         context.setMapName(mapName);
         context.setMapStoreConfig(mapStoreConfig);
-        context.setMaxSizeConfig(maxSizeConfig);
         context.setPartitioningStrategy(partitioningStrategy);
         context.setMapServiceContext(mapServiceContext);
         context.setStoreWrapper(storeWrapper);
@@ -183,7 +148,6 @@ final class BasicMapStoreContext implements MapStoreContext {
         final MapStoreConfig mapStoreConfig = mapConfig.getMapStoreConfig();
         mapStoreConfig.setImplementation(store);
     }
-
 
     private static MapStoreManager createMapStoreManager(MapStoreContext mapStoreContext) {
         final MapStoreConfig mapStoreConfig = mapStoreContext.getMapStoreConfig();
@@ -210,86 +174,9 @@ final class BasicMapStoreContext implements MapStoreContext {
         mapStoreWrapper.init(hazelcastInstance, properties, mapName);
     }
 
-    private void loadInitialKeys() {
-        // load all keys.
-        Set keys = storeWrapper.loadAllKeys();
-        if (keys == null || keys.isEmpty()) {
-            return;
-        }
-
-        // select keys owned by current node.
-        final MapServiceContext mapServiceContext = getMapServiceContext();
-        selectOwnedKeys(keys, mapServiceContext);
-
-        // remove the keys remains more than 20 minutes.
-        final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
-        final ExecutionService executionService = nodeEngine.getExecutionService();
-        executionService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                initialKeys.clear();
-            }
-        }, INITIAL_KEYS_REMOVE_DELAY_MINUTES, TimeUnit.MINUTES);
-    }
-
-    private void selectOwnedKeys(Set loadedKeys, MapServiceContext mapServiceContext) {
-        final Map<Data, Object> initialKeys = this.initialKeys;
-        initialKeys.clear();
-        final PartitioningStrategy partitioningStrategy = this.partitioningStrategy;
-        int maxSizePerNode = getApproximateMaxSize(getMaxSizePerNode()) - 1;
-
-        for (Object key : loadedKeys) {
-            Data dataKey = mapServiceContext.toData(key, partitioningStrategy);
-            // this node will load only owned keys
-            if (mapServiceContext.isOwnedKey(dataKey)) {
-
-                initialKeys.put(dataKey, key);
-
-                if (initialKeys.size() == maxSizePerNode) {
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * Get max size per node setting form config
-     *
-     * @return max size or -1 if policy is not set
-     */
-    private int getMaxSizePerNode() {
-        final MaxSizeConfig maxSizeConfig = this.maxSizeConfig;
-        int maxSize = -1;
-
-        if (maxSizeConfig.getMaxSizePolicy() == PER_NODE) {
-            maxSize = maxSizeConfig.getSize();
-        }
-
-        return maxSize;
-    }
-
-    /**
-     * We are offloading initial key load operation.
-     * A {@link com.hazelcast.map.impl.RecordStore} should wait finish of this task.
-     */
-    private final class TriggerInitialKeyLoad implements Callable<Boolean> {
-        @Override
-        public Boolean call() throws Exception {
-
-            loadInitialKeys();
-
-            return Boolean.TRUE;
-        }
-    }
-
-    private <T> Future<T> executeTask(String executorName, Callable task) {
-        return getExecutionService().submit(executorName, task);
-
-    }
-
-    private ExecutionService getExecutionService() {
-        final NodeEngine nodeEngine = mapServiceContext.getNodeEngine();
-        return nodeEngine.getExecutionService();
+    @Override
+    public Iterable<Object> loadAllKeys() {
+        return IterableUtil.nullToEmpty(storeWrapper.loadAllKeys());
     }
 
     void setMapStoreManager(MapStoreManager mapStoreManager) {
@@ -309,14 +196,9 @@ final class BasicMapStoreContext implements MapStoreContext {
     }
 
     void setPartitioningStrategy(PartitioningStrategy partitioningStrategy) {
-        this.partitioningStrategy = partitioningStrategy;
     }
 
     void setMapStoreConfig(MapStoreConfig mapStoreConfig) {
         this.mapStoreConfig = mapStoreConfig;
-    }
-
-    void setMaxSizeConfig(MaxSizeConfig maxSizeConfig) {
-        this.maxSizeConfig = maxSizeConfig;
     }
 }

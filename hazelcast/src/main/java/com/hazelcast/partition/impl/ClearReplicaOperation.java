@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,8 +56,8 @@ final class ClearReplicaOperation extends AbstractOperation
             }
             ILogger logger = getLogger();
             if (logger.isFinestEnabled()) {
-                logger.finest("Clearing partition replica... partition: " + partitionId
-                        + ", old-replica: " + oldReplicaIndex + ", current-replica: " + currentReplicaIndex);
+                logger.finest("Clearing partition replica... partitionId=" + partitionId
+                        + ", old-replicaIndex=" + oldReplicaIndex + ", current-replicaIndex=" + currentReplicaIndex);
             }
             clearPartition(partitionId, partitionService);
         }
@@ -78,7 +78,7 @@ final class ClearReplicaOperation extends AbstractOperation
 
     private void logMigrationError(Throwable e) {
         ILogger logger = getLogger();
-        logger.warning("While clearing partition data: " + getPartitionId(), e);
+        logger.warning("Error while clearing data. partitionId=" + getPartitionId() + " old-replicaIndex=" + oldReplicaIndex, e);
     }
 
     @Override

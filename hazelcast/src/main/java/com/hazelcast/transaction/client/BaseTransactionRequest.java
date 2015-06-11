@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,12 @@
 
 package com.hazelcast.transaction.client;
 
+import com.hazelcast.client.ClientEndpoint;
 import com.hazelcast.client.impl.client.CallableClientRequest;
 import com.hazelcast.nio.serialization.PortableReader;
 import com.hazelcast.nio.serialization.PortableWriter;
+import com.hazelcast.transaction.TransactionContext;
+import com.hazelcast.transaction.TransactionException;
 import com.hazelcast.util.ThreadUtil;
 
 import java.io.IOException;
@@ -49,6 +52,15 @@ public abstract class BaseTransactionRequest extends CallableClientRequest {
 
     public void setClientThreadId(long clientThreadId) {
         this.clientThreadId = clientThreadId;
+    }
+
+    protected TransactionContext getTransactionContext() {
+        ClientEndpoint endpoint = getEndpoint();
+        TransactionContext transactionContext = endpoint.getTransactionContext(txnId);
+        if (transactionContext == null) {
+            throw new TransactionException("No transaction context with given transactionId: " + txnId);
+        }
+        return transactionContext;
     }
 
     @Override

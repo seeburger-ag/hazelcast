@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,14 +27,14 @@ public interface EvictionCandidate<A, E extends Evictable> {
     /**
      * The accessor (key or id) of {@link Evictable} entry or record or whatever.
      *
-     * @return the accessor
+     * @return the accessor (key or id) of {@link Evictable} entry or record or whatever
      */
     A getAccessor();
 
     /**
      * The value of {@link Evictable} entry or record or whatever.
      *
-     * @return the value
+     * @return the value of {@link Evictable} entry or record or whatever
      */
     E getEvictable();
 

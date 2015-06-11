@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package com.hazelcast.core;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.DataSerializable;
+import com.hazelcast.partition.PartitionEvent;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -31,7 +32,7 @@ import java.io.IOException;
  * @see PartitionService
  * @see MigrationListener
  */
-public class MigrationEvent implements DataSerializable {
+public class MigrationEvent implements DataSerializable, PartitionEvent {
 
     private int partitionId;
     private Member oldOwner;

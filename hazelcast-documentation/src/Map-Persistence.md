@@ -77,7 +77,7 @@ public class PersonMapStore implements MapStore<Long, Person> {
         return result;
     }
 
-    public Set<Long> loadAllKeys() {
+    public Iterable<Long> loadAllKeys() {
         return null;
     }
 }
@@ -105,11 +105,9 @@ If an entry does not exist in the memory when an application asks for it, Hazelc
 
 In this mode, when the `map.put(key,value)` call returns:
 
--   `MapStore.store(key,value)` is successfully called so the entry is persisted.
-
--   In-Memory entry is updated.
-
--   In-Memory backup copies are successfully created on other JVMs (if `backup-count` is greater than 0).
+- `MapStore.store(key,value)` is successfully called so the entry is persisted.
+- In-Memory entry is updated.
+- In-Memory backup copies are successfully created on other JVMs (if `backup-count` is greater than 0).
 
 The same behavior goes for a `map.remove(key)` call. The only difference is that  `MapStore.delete(key)` is called when the entry will be deleted.
 
@@ -119,18 +117,17 @@ If `MapStore` throws an exception, then the exception will be propagated back to
 
 You can configure `MapStore` as write-behind by setting the `write-delay-seconds` property to a value bigger than **0**. This means the modified entries will be put to the data store asynchronously after a configured delay. 
 
-![image](images/NoteSmall.jpg) ***NOTE:*** *In write-behind mode, by default Hazelcast coalesces updates on a specific key, i.e. applies only the last update on it. But you can also set `MapStoreConfig#setWriteCoalescing` to `FALSE` and you can store all updates on a key to the store.*
+![image](images/NoteSmall.jpg) ***NOTE:*** *In write-behind mode, by default Hazelcast coalesces updates on a specific key, i.e. applies only the last update on it. But, you can set `MapStoreConfig#setWriteCoalescing` to `FALSE` and you can store all updates performed on a key to the data store.*
 
-![image](images/NoteSmall.jpg) ***NOTE:*** *When you set `MapStoreConfig#setWriteCoalescing` to `FALSE`, after you reached per-node max write-behind-queue capacity, subsequent put operations will fail with `ReachedMaxSizeException`. This exception will be thrown to prevent uncontrolled grow of write-behind queues. You can set per node max capacity with `GroupProperty#MAP_WRITE_BEHIND_QUEUE_CAPACITY` *
+![image](images/NoteSmall.jpg) ***NOTE:*** *When you set `MapStoreConfig#setWriteCoalescing` to `FALSE`, after you reached per-node maximum write-behind-queue capacity, subsequent put operations will fail with `ReachedMaxSizeException`. This exception will be thrown to prevent uncontrolled grow of write-behind queues. You can set per node maximum capacity with `GroupProperty#MAP_WRITE_BEHIND_QUEUE_CAPACITY`.*
 
 
 In this mode, when the `map.put(key,value)` call returns:
 
--   In-Memory entry is updated.
-
--   In-Memory backup copies are successfully created on other JVMs (if `backup-count` is greater than 0).
-
--   The entry is marked as dirty so that after `write-delay-seconds`, it can be persisted with `MapStore.store(key,value)` call.
+- In-Memory entry is updated.
+- In-Memory backup copies are successfully created on other JVMs (if `backup-count` is greater than 0).
+- The entry is marked as dirty so that after `write-delay-seconds`, it can be persisted with `MapStore.store(key,value)` call.
+- For fault tolerance dirty entries are stored in a queue on the primary member and also on a back-up member.
 
 The same behavior goes for the `map.remove(key)`, the only difference is that  `MapStore.delete(key)` is called when the entry will be deleted.
 
@@ -153,31 +150,20 @@ Here is a sample configuration:
   <map name="default">
     ...
     <map-store enabled="true">
-      <!--
-        Name of the class implementing MapLoader and/or MapStore.
-        The class should implement at least of these interfaces and
-        contain no-argument constructor. Note that the inner classes are not supported.
-      -->
       <class-name>com.hazelcast.examples.DummyStore</class-name>
-      <!--
-        Number of seconds to delay to call the MapStore.store(key, value).
-        If the value is zero then it is write-through so MapStore.store(key, value)
-        will be called as soon as the entry is updated.
-        Otherwise it is write-behind so updates will be stored after write-delay-seconds
-        value by calling Hazelcast.storeAll(map). Default value is 0.
-      -->
       <write-delay-seconds>60</write-delay-seconds>
-      <!--
-        Used to create batch chunks when writing map store.
-        In default mode all entries will be tried to persist in one go.
-        To create batch chunks, minimum meaningful value for write-batch-size
-        is 2. For values smaller than 2, it works as in default mode.
-      -->
       <write-batch-size>1000</write-batch-size>
+      <write-coalescing>true</write-coalescing>
     </map-store>
   </map>
 </hazelcast>
 ```
+<br></br>
+***RELATED INFORMATION***
+
+*Please refer to the [Map Store section](#map-store) for the full Map Store configuration description.*
+
+<br></br>
 
 #### MapStoreFactory And MapLoaderLifecycleSupport Interfaces
 
@@ -231,13 +217,21 @@ The `InitialLoadMode` configuration parameter in the class [`MapStoreConfig`](ht
 
 Here is the `MapLoader` initialization flow:
 
-1. When `getMap()` is first called from any node, initialization will start depending on the the value of `InitialLoadMode`. If it is set to `EAGER`, initialization starts.  If it is set to `LAZY`, initialization does not start but data is loaded each time a partition loading completes.
-2. Hazelcast will call `MapLoader.loadAllKeys()` to get all your keys on each node.
-3. Each node will figure out the list of keys it owns.
-4. Each node will load all its owned keys by calling `MapLoader.loadAll(keys)`.
+1. When `getMap()` is first called from any node, initialization will start depending on the value of `InitialLoadMode`. If it is set to `EAGER`, initialization starts.  If it is set to `LAZY`, initialization does not start but data is loaded each time a partition loading completes.
+2. Hazelcast will call `MapLoader.loadAllKeys()` to get all your keys on one of the nodes.
+3. That node will distribute keys to all other nodes in batches.
+4. Each node will load values of all its owned keys by calling `MapLoader.loadAll(keys)`.
 5. Each node puts its owned entries into the map by calling `IMap.putTransient(key,value)`.
 
 ![image](images/NoteSmall.jpg) ***NOTE:*** *If the load mode is `LAZY` and when the `clear()` method is called (which triggers `MapStore.deleteAll()`), Hazelcast will remove **ONLY** the loaded entries from your map and datastore. Since the whole data is not loaded for this case (`LAZY` mode), please note that there may be still entries in your datastore.*
+<br></br>
+
+![image](images/NoteSmall.jpg) ***NOTE:*** *The return type of `loadAllKeys()` is changed from `Set` to `Iterable` with the release of Hazelcast 3.5. MapLoader implementations from previous releases are also supported and do not need to be adapted.*
+
+<br></br>
+#### Incremental Key Loading
+
+If the number of keys to load is large, it is more efficient to load them incrementally than loading them all at once. To support incremental loading, `MapLoader.loadAllKeys()` returns an `Iterable` which can be lazily populated with results of a database query. Hazelcast iterates over the iterable and, while doing so, sends out the keys to their respective owner nodes. The `Iterator` obtained from `MapLoader.loadAllKeys()` may also implement the `Closeable` interface in which case it is closed once the iteration is over. This is intended for releasing resources such as closing a JDBC result set. 
 
 #### Forcing All Keys To Be Loaded
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,11 +44,11 @@ public final class EvictionStrategyProvider {
     /**
      * Gets the {@link EvictionStrategy} implementation specified with <code>evictionStrategyType</code>.
      *
-     * @param evictionConfig {@link EvictionConfig} for requested {@link EvictionStrategy} implementation
+     * @param evictionConfig {@link EvictionConfiguration} for the requested {@link EvictionStrategy} implementation
      *
      * @return the requested {@link EvictionStrategy} implementation
      */
-    public static EvictionStrategy getEvictionStrategy(EvictionConfig evictionConfig) {
+    public static EvictionStrategy getEvictionStrategy(EvictionConfiguration evictionConfig) {
         if (evictionConfig == null) {
             return null;
         }
@@ -64,7 +64,7 @@ public final class EvictionStrategyProvider {
     }
 
     /**
-     * Gets default {@link EvictionStrategy} implementation.
+     * Gets the default {@link EvictionStrategy} implementation.
      *
      * @return the default {@link EvictionStrategy} implementation
      */

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.hazelcast.partition.impl;
 
 import com.hazelcast.nio.Address;
@@ -14,11 +30,13 @@ class InternalPartitionImpl implements InternalPartition {
     private volatile Address[] addresses = new Address[MAX_REPLICA_COUNT];
     private final int partitionId;
     private final PartitionListener partitionListener;
+    private final Address thisAddress;
     private volatile boolean isMigrating;
 
-    InternalPartitionImpl(int partitionId, PartitionListener partitionListener) {
+    InternalPartitionImpl(int partitionId, PartitionListener partitionListener, Address thisAddress) {
         this.partitionId = partitionId;
         this.partitionListener = partitionListener;
+        this.thisAddress = thisAddress;
     }
 
     @Override
@@ -33,6 +51,11 @@ class InternalPartitionImpl implements InternalPartition {
 
     public void setMigrating(boolean isMigrating) {
         this.isMigrating = isMigrating;
+    }
+
+    @Override
+    public boolean isLocal() {
+        return thisAddress.equals(getOwnerOrNull());
     }
 
     @Override
@@ -60,7 +83,7 @@ class InternalPartitionImpl implements InternalPartition {
             }
             newAddresses[MAX_REPLICA_COUNT - 1] = null;
             addresses = newAddresses;
-            callPartitionListener(newAddresses, currentAddresses);
+            callPartitionListener(newAddresses, currentAddresses, PartitionReplicaChangeReason.MEMBER_REMOVED);
             return true;
         }
         return false;
@@ -73,21 +96,23 @@ class InternalPartitionImpl implements InternalPartition {
     void setReplicaAddresses(Address[] newAddresses) {
         Address[] oldAddresses = addresses;
         addresses = newAddresses;
-        callPartitionListener(newAddresses, oldAddresses);
+        callPartitionListener(newAddresses, oldAddresses, PartitionReplicaChangeReason.ASSIGNMENT);
 
     }
 
-    private void callPartitionListener(Address[] newAddresses, Address[] oldAddresses) {
+    private void callPartitionListener(Address[] newAddresses, Address[] oldAddresses,
+                                       PartitionReplicaChangeReason reason) {
         if (partitionListener != null) {
             for (int replicaIndex = 0; replicaIndex < MAX_REPLICA_COUNT; replicaIndex++) {
                 Address oldAddress = oldAddresses[replicaIndex];
                 Address newAddress = newAddresses[replicaIndex];
-                callPartitionListener(replicaIndex, oldAddress, newAddress);
+                callPartitionListener(replicaIndex, oldAddress, newAddress, reason);
             }
         }
     }
 
-    private void callPartitionListener(int replicaIndex, Address oldAddress, Address newAddress) {
+    private void callPartitionListener(int replicaIndex, Address oldAddress, Address newAddress,
+                                       PartitionReplicaChangeReason reason) {
         boolean changed;
         if (oldAddress == null) {
             changed = newAddress != null;
@@ -96,7 +121,7 @@ class InternalPartitionImpl implements InternalPartition {
         }
         if (changed) {
             PartitionReplicaChangeEvent event
-                    = new PartitionReplicaChangeEvent(partitionId, replicaIndex, oldAddress, newAddress);
+                    = new PartitionReplicaChangeEvent(partitionId, replicaIndex, oldAddress, newAddress, reason);
             partitionListener.replicaChanged(event);
         }
     }

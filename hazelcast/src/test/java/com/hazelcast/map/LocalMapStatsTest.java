@@ -20,7 +20,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -101,8 +100,7 @@ public class LocalMapStatsTest extends HazelcastTestSupport {
 
     @Test
     public void testLastAccessTime() throws InterruptedException {
-        final TimeUnit timeUnit = TimeUnit.NANOSECONDS;
-        final long startTime = timeUnit.toMillis(System.nanoTime());
+        final long startTime = Clock.currentTimeMillis();
 
         HazelcastInstance h1 = createHazelcastInstance();
         IMap<String, String> map1 = h1.getMap(randomMapName());
@@ -267,5 +265,4 @@ public class LocalMapStatsTest extends HazelcastTestSupport {
         }
         return memberGroupConfig;
     }
-
 }

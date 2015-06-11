@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * This package contains classes to support the inner workings of Hazelcast
  * as well as some backports of newer Java features / data structures to
  * support older Java versions in a clean and nice way.
+ *
+ * This is an internal package; so we don't provide backward compatibility on these classes.
  */
 package com.hazelcast.util;

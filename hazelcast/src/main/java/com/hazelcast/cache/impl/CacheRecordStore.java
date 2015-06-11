@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package com.hazelcast.cache.impl;
 
-import com.hazelcast.cache.impl.maxsize.CacheMaxSizeChecker;
+import com.hazelcast.cache.impl.maxsize.MaxSizeChecker;
 import com.hazelcast.cache.impl.record.CacheRecord;
 import com.hazelcast.cache.impl.record.CacheRecordFactory;
 import com.hazelcast.cache.impl.record.CacheRecordHashMap;
-import com.hazelcast.config.CacheEvictionConfig;
+import com.hazelcast.config.EvictionConfig;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.nio.serialization.SerializationService;
 import com.hazelcast.spi.NodeEngine;
@@ -57,23 +57,23 @@ public class CacheRecordStore
     protected CacheRecordFactory cacheRecordFactory;
 
     public CacheRecordStore(String name, int partitionId, NodeEngine nodeEngine,
-            AbstractCacheService cacheService) {
+                            AbstractCacheService cacheService) {
         super(name, partitionId, nodeEngine, cacheService);
         this.serializationService = nodeEngine.getSerializationService();
         this.cacheRecordFactory = createCacheRecordFactory();
     }
 
     @Override
-    protected CacheMaxSizeChecker createCacheMaxSizeChecker(int size,
-            CacheEvictionConfig.CacheMaxSizePolicy maxSizePolicy) {
+    protected MaxSizeChecker createCacheMaxSizeChecker(int size,
+                                                       EvictionConfig.MaxSizePolicy maxSizePolicy) {
         if (maxSizePolicy == null) {
             throw new IllegalArgumentException("Max-Size policy cannot be null");
         }
 
-        if (maxSizePolicy != CacheEvictionConfig.CacheMaxSizePolicy.ENTRY_COUNT) {
+        if (maxSizePolicy != EvictionConfig.MaxSizePolicy.ENTRY_COUNT) {
             throw new IllegalArgumentException("Invalid max-size policy "
                     + "(" + maxSizePolicy + ") for " + getClass().getName() + " ! Only "
-                    + CacheEvictionConfig.CacheMaxSizePolicy.ENTRY_COUNT + " is supported.");
+                    + EvictionConfig.MaxSizePolicy.ENTRY_COUNT + " is supported.");
         } else {
             return super.createCacheMaxSizeChecker(size, maxSizePolicy);
         }
@@ -85,14 +85,14 @@ public class CacheRecordStore
     }
 
     @Override
-    protected CacheEntryProcessorEntry createCacheEntryProcessorEntry(Data key,
-            CacheRecord record, long now, int completionId) {
+    protected CacheEntryProcessorEntry createCacheEntryProcessorEntry(Data key, CacheRecord record,
+                                                                      long now, int completionId) {
         return new CacheEntryProcessorEntry(key, record, this, now, completionId);
     }
 
     protected CacheRecordFactory createCacheRecordFactory() {
         return new CacheRecordFactory(cacheConfig.getInMemoryFormat(),
-                nodeEngine.getSerializationService());
+                                      nodeEngine.getSerializationService());
     }
 
     @Override
@@ -110,11 +110,6 @@ public class CacheRecordStore
     @Override
     protected Object dataToValue(Data data) {
         return serializationService.toObject(data);
-    }
-
-    @Override
-    protected CacheRecord valueToRecord(Object value) {
-        return cacheRecordFactory.newRecord(value);
     }
 
     @Override
@@ -144,18 +139,6 @@ public class CacheRecordStore
             return (Data) value;
         } else {
             return valueToData(value);
-        }
-    }
-
-    @Override
-    protected CacheRecord dataToRecord(Data data) {
-        Object value = dataToValue(data);
-        if (value == null) {
-            return null;
-        } else if (value instanceof CacheRecord) {
-            return (CacheRecord) value;
-        } else {
-            return valueToRecord(value);
         }
     }
 

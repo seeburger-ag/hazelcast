@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,21 +19,19 @@ package com.hazelcast.client.spi.impl;
 import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.spi.ClientClusterService;
 import com.hazelcast.client.spi.ClientExecutionService;
-import com.hazelcast.client.spi.ClientInvocationService;
 import com.hazelcast.client.spi.ClientPartitionService;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.Partition;
-import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 import com.hazelcast.nio.Address;
+import com.hazelcast.nio.Connection;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.partition.client.GetPartitionsRequest;
 import com.hazelcast.partition.client.PartitionsResponse;
 import com.hazelcast.util.EmptyStatement;
 
-import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
@@ -48,6 +46,7 @@ public final class ClientPartitionServiceImpl implements ClientPartitionService 
     private static final ILogger LOGGER = Logger.getLogger(ClientPartitionService.class);
     private static final long PERIOD = 10;
     private static final long INITIAL_DELAY = 10;
+    private static final int PARTITION_WAIT_TIME = 1000;
 
     private final HazelcastClientInstanceImpl client;
 
@@ -62,37 +61,51 @@ public final class ClientPartitionServiceImpl implements ClientPartitionService 
     }
 
     public void start() {
-        getInitialPartitions();
         ClientExecutionService clientExecutionService = client.getClientExecutionService();
         clientExecutionService.scheduleWithFixedDelay(new RefreshTask(), INITIAL_DELAY, PERIOD, TimeUnit.SECONDS);
     }
 
     public void refreshPartitions() {
+        ClientExecutionServiceImpl executionService = (ClientExecutionServiceImpl) client.getClientExecutionService();
         try {
-            client.getClientExecutionService().execute(new RefreshTask());
+            executionService.executeInternal(new RefreshTask());
         } catch (RejectedExecutionException ignored) {
             EmptyStatement.ignore(ignored);
         }
     }
 
-    private void getInitialPartitions() {
-        ClientClusterService clusterService = client.getClientClusterService();
-        Collection<MemberImpl> memberList = clusterService.getMemberList();
-        for (MemberImpl member : memberList) {
-            Address target = member.getAddress();
-            PartitionsResponse response = getPartitionsFrom(target);
-            if (response != null) {
-                processPartitionResponse(response);
-                return;
+    private void getPartitionsBlocking() {
+        while (!getPartitions() && client.getConnectionManager().isAlive()) {
+            try {
+                Thread.sleep(PARTITION_WAIT_TIME);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
-        throw new IllegalStateException("Cannot get initial partitions!");
     }
 
-    private PartitionsResponse getPartitionsFrom(Address address) {
+    private boolean getPartitions() {
+        ClientClusterService clusterService = client.getClientClusterService();
+        Address ownerAddress = clusterService.getOwnerConnectionAddress();
+        if (ownerAddress == null) {
+            return false;
+        }
+        Connection connection = client.getConnectionManager().getConnection(ownerAddress);
+        PartitionsResponse response = getPartitionsFrom(connection);
+        if (response != null) {
+            processPartitionResponse(response);
+            return true;
+        }
+        return false;
+    }
+
+    private PartitionsResponse getPartitionsFrom(Connection connection) {
+        if (connection == null) {
+            return null;
+        }
         try {
-            ClientInvocationService invocationService = client.getInvocationService();
-            Future<PartitionsResponse> future = invocationService.invokeOnTarget(new GetPartitionsRequest(), address);
+            final GetPartitionsRequest request = new GetPartitionsRequest();
+            Future<PartitionsResponse> future = new ClientInvocation(client, request, connection).invoke();
             return client.getSerializationService().toObject(future.get());
         } catch (Exception e) {
             if (client.getLifecycleService().isRunning()) {
@@ -122,12 +135,16 @@ public final class ClientPartitionServiceImpl implements ClientPartitionService 
 
     @Override
     public Address getPartitionOwner(int partitionId) {
+        Address address = partitions.get(partitionId);
+        if (address == null) {
+            getPartitionsBlocking();
+        }
         return partitions.get(partitionId);
     }
 
     @Override
     public int getPartitionId(Data key) {
-        final int pc = partitionCount;
+        final int pc = getPartitionCount();
         if (pc <= 0) {
             return 0;
         }
@@ -143,6 +160,9 @@ public final class ClientPartitionServiceImpl implements ClientPartitionService 
 
     @Override
     public int getPartitionCount() {
+        if (partitionCount == 0) {
+            getPartitionsBlocking();
+        }
         return partitionCount;
     }
 
@@ -189,12 +209,7 @@ public final class ClientPartitionServiceImpl implements ClientPartitionService 
             }
 
             try {
-                ClientClusterService clusterService = client.getClientClusterService();
-                Address master = clusterService.getMasterAddress();
-                PartitionsResponse response = getPartitionsFrom(master);
-                if (response != null) {
-                    processPartitionResponse(response);
-                }
+                getPartitions();
             } catch (HazelcastInstanceNotActiveException ignored) {
                 EmptyStatement.ignore(ignored);
             } finally {

@@ -29,10 +29,10 @@ public interface HazelcastCacheManager
         extends CacheManager {
 
     /**
-     +     * Gets the underlying {@link HazelcastInstance} implementation.
-     +     *
-     +     * @return the underlying {@link HazelcastInstance} implementation
-     +     */
+     * Gets the underlying {@link HazelcastInstance} implementation.
+     *
+     * @return the underlying {@link HazelcastInstance} implementation
+     */
     HazelcastInstance getHazelcastInstance();
 
     /**

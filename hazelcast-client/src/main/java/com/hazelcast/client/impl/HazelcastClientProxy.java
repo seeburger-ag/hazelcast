@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.hazelcast.client.impl;
 
-import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.Client;
@@ -46,11 +45,14 @@ import com.hazelcast.instance.TerminatedLifecycleService;
 import com.hazelcast.logging.LoggingService;
 import com.hazelcast.mapreduce.JobTracker;
 import com.hazelcast.nio.serialization.SerializationService;
+import com.hazelcast.quorum.QuorumService;
+import com.hazelcast.ringbuffer.Ringbuffer;
+import com.hazelcast.spi.impl.SerializationServiceSupport;
+import com.hazelcast.transaction.HazelcastXAResource;
 import com.hazelcast.transaction.TransactionContext;
 import com.hazelcast.transaction.TransactionException;
 import com.hazelcast.transaction.TransactionOptions;
 import com.hazelcast.transaction.TransactionalTask;
-
 import java.util.Collection;
 import java.util.concurrent.ConcurrentMap;
 
@@ -58,12 +60,17 @@ import java.util.concurrent.ConcurrentMap;
  * A client-side proxy {@link com.hazelcast.core.HazelcastInstance} instance.
  *
  */
-public final class HazelcastClientProxy implements HazelcastInstance {
+public final class HazelcastClientProxy implements HazelcastInstance, SerializationServiceSupport {
 
     public volatile HazelcastClientInstanceImpl client;
 
     public HazelcastClientProxy(HazelcastClientInstanceImpl client) {
         this.client = client;
+    }
+
+    @Override
+    public <E> Ringbuffer<E> getRingbuffer(String name) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -84,6 +91,11 @@ public final class HazelcastClientProxy implements HazelcastInstance {
     @Override
     public <E> ITopic<E> getTopic(String name) {
         return getClient().getTopic(name);
+    }
+
+    @Override
+    public <E> ITopic<E> getReliableTopic(String name) {
+        return getClient().getReliableTopic(name);
     }
 
     @Override
@@ -209,6 +221,11 @@ public final class HazelcastClientProxy implements HazelcastInstance {
     }
 
     @Override
+    public QuorumService getQuorumService() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public ClientService getClientService() {
         return getClient().getClientService();
     }
@@ -241,6 +258,11 @@ public final class HazelcastClientProxy implements HazelcastInstance {
 
     public ClientConfig getClientConfig() {
         return getClient().getClientConfig();
+    }
+
+    @Override
+    public HazelcastXAResource getXAResource() {
+        return getClient().getXAResource();
     }
 
     @Override

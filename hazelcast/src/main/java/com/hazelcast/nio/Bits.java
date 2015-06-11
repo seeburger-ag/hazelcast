@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,14 @@ package com.hazelcast.nio;
  */
 public final class Bits {
 
+    /**
+     * Byte size in bytes
+     */
+    public static final int BYTE_SIZE_IN_BYTES = 1;
+    /**
+     * Boolean size in bytes
+     */
+    public static final int BOOLEAN_SIZE_IN_BYTES = 1;
     /**
      * Short size in bytes
      */
@@ -45,6 +53,10 @@ public final class Bits {
      * Double size in bytes
      */
     public static final int DOUBLE_SIZE_IN_BYTES = 8;
+    /**
+     * Length of the data blocks used by the CPU cache sub-system in bytes.
+     */
+    public static final int CACHE_LINE_LENGTH = 64;
 
     private Bits() {
     }
@@ -229,7 +241,7 @@ public final class Bits {
      * Sets n-th bit of the byte value
      *
      * @param value byte value
-     * @param bit n-th bit
+     * @param bit   n-th bit
      * @return value
      */
     public static byte setBit(byte value, int bit) {
@@ -241,7 +253,7 @@ public final class Bits {
      * Clears n-th bit of the byte value
      *
      * @param value byte value
-     * @param bit n-th bit
+     * @param bit   n-th bit
      * @return value
      */
     public static byte clearBit(byte value, int bit) {
@@ -253,7 +265,7 @@ public final class Bits {
      * Inverts n-th bit of the byte value
      *
      * @param value byte value
-     * @param bit n-th bit
+     * @param bit   n-th bit
      * @return value
      */
     public static byte invertBit(byte value, int bit) {
@@ -265,7 +277,7 @@ public final class Bits {
      * Sets n-th bit of the integer value
      *
      * @param value integer value
-     * @param bit n-th bit
+     * @param bit   n-th bit
      * @return value
      */
     public static int setBit(int value, int bit) {
@@ -277,7 +289,7 @@ public final class Bits {
      * Clears n-th bit of the integer value
      *
      * @param value integer value
-     * @param bit n-th bit
+     * @param bit   n-th bit
      * @return value
      */
     public static int clearBit(int value, int bit) {
@@ -289,7 +301,7 @@ public final class Bits {
      * Inverts n-th bit of the integer value
      *
      * @param value integer value
-     * @param bit n-th bit
+     * @param bit   n-th bit
      * @return value
      */
     public static int invertBit(int value, int bit) {

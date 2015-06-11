@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+* Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -72,13 +72,13 @@ public class PacketTest {
         SerializationService ss = createSerializationServiceBuilder().build();
         Data data1 = ss.toData(object);
 
-        ByteBuffer buffer = ByteBuffer.allocate(Packet.getDataSize(data1, ss.getPortableContext()) * 2);
-        Packet packet1 = new Packet(data1, ss.getPortableContext());
+        ByteBuffer buffer = ByteBuffer.allocate(data1.dataSize() * 2);
+        Packet packet1 = new Packet(data1);
         assertTrue(packet1.writeTo(buffer));
         buffer.flip();
 
         SerializationService ss2 = createSerializationServiceBuilder().build();
-        Packet packet2 = new Packet(ss2.getPortableContext());
+        Packet packet2 = new Packet();
         assertTrue(packet2.readFrom(buffer));
 
         Data data2 = packet2.getData();

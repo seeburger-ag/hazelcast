@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,8 +103,8 @@ public class JCacheListenerTest extends HazelcastTestSupport {
             shutdown.set(true);
             if (!latch.await(shutdownWaitTimeInSeconds, TimeUnit.SECONDS)) {
                 fail("Cache operations have not finished in "
-                        + (ASSERT_TRUE_EVENTUALLY_TIMEOUT + shutdownWaitTimeInSeconds)
-                        + " seconds when sync listener is present!");
+                     + (ASSERT_TRUE_EVENTUALLY_TIMEOUT + shutdownWaitTimeInSeconds)
+                     + " seconds when sync listener is present!");
             }
         }
         assertEquals(actualPutCount.get(), counter.get());
@@ -171,7 +171,6 @@ public class JCacheListenerTest extends HazelcastTestSupport {
         String key = randomString();
         cache.put(key, randomString());
         // there should not be any hanging due to sync listener
-
         cache.replace(key, randomString(), randomString());
     }
 
@@ -340,14 +339,12 @@ public class JCacheListenerTest extends HazelcastTestSupport {
         @Override
         public void onCreated(Iterable<CacheEntryEvent<? extends String, ? extends String>> cacheEntryEvents)
                 throws CacheEntryListenerException {
-
             onEvent(cacheEntryEvents);
         }
 
         @Override
         public void onUpdated(Iterable<CacheEntryEvent<? extends String, ? extends String>> cacheEntryEvents)
                 throws CacheEntryListenerException {
-
             onEvent(cacheEntryEvents);
         }
 

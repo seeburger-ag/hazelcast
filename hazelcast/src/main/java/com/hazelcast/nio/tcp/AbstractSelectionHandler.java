@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,39 +20,53 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.nio.ConnectionType;
 
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.logging.Level;
 
-abstract class AbstractSelectionHandler implements SelectionHandler {
+public abstract class AbstractSelectionHandler implements MigratableHandler {
 
     protected final ILogger logger;
-
     protected final SocketChannelWrapper socketChannel;
-
     protected final TcpIpConnection connection;
-
     protected final TcpIpConnectionManager connectionManager;
+    protected Selector selector;
+    protected IOSelector ioSelector;
 
+    private SelectionKey selectionKey;
+    private final int initialOps;
 
-    private SelectionKey sk;
-
-    public AbstractSelectionHandler(final TcpIpConnection connection) {
+    public AbstractSelectionHandler(TcpIpConnection connection, IOSelector ioSelector, int initialOps) {
         this.connection = connection;
+        this.ioSelector = ioSelector;
+        this.selector = ioSelector.getSelector();
         this.socketChannel = connection.getSocketChannelWrapper();
         this.connectionManager = connection.getConnectionManager();
         this.logger = connectionManager.ioService.getLogger(this.getClass().getName());
+        this.initialOps = initialOps;
+    }
+
+    protected SelectionKey getSelectionKey() {
+        if (selectionKey == null) {
+            try {
+                selectionKey = socketChannel.register(selector, initialOps, this);
+            } catch (ClosedChannelException e) {
+                handleSocketException(e);
+            }
+        }
+        return selectionKey;
     }
 
     final void handleSocketException(Throwable e) {
         if (e instanceof OutOfMemoryError) {
             connectionManager.ioService.onOutOfMemory((OutOfMemoryError) e);
         }
-        if (sk != null) {
-            sk.cancel();
+        if (selectionKey != null) {
+            selectionKey.cancel();
         }
         connection.close(e);
-        final ConnectionType connectionType = connection.getType();
+        ConnectionType connectionType = connection.getType();
         if (connectionType.isClient() && !connectionType.isBinary()) {
             return;
         }
@@ -61,7 +75,7 @@ abstract class AbstractSelectionHandler implements SelectionHandler {
         sb.append(" Closing socket to endpoint ");
         sb.append(connection.getEndPoint());
         sb.append(", Cause:").append(e);
-        final Level level = connectionManager.ioService.isActive() ? Level.WARNING : Level.FINEST;
+        Level level = connectionManager.ioService.isActive() ? Level.WARNING : Level.FINEST;
         if (e instanceof IOException) {
             logger.log(level, sb.toString());
         } else {
@@ -69,24 +83,66 @@ abstract class AbstractSelectionHandler implements SelectionHandler {
         }
     }
 
-    final void registerOp(final Selector selector, final int operation) {
+    final void registerOp(int operation) {
+        SelectionKey selectionKey = getSelectionKey();
+
         try {
-            if (!connection.isAlive()) {
-                return;
-            }
-            if (sk == null) {
-                sk = socketChannel.keyFor(selector);
-            }
-            if (sk == null) {
-                sk = socketChannel.register(selector, operation, this);
-            } else {
-                sk.interestOps(sk.interestOps() | operation);
-                if (sk.attachment() != this) {
-                    sk.attach(this);
-                }
-            }
+            selectionKey.interestOps(selectionKey.interestOps() | operation);
         } catch (Throwable e) {
             handleSocketException(e);
         }
+    }
+
+    final void unregisterOp(int operation) {
+        SelectionKey selectionKey = getSelectionKey();
+        try {
+            selectionKey.interestOps(selectionKey.interestOps() & ~operation);
+        } catch (Throwable e) {
+            handleSocketException(e);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     */
+    public IOSelector getOwner() {
+        return ioSelector;
+    }
+
+    // This method run on the oldOwner IOSelector(thread)
+    void startMigration(final IOSelector newOwner) {
+        assert ioSelector == Thread.currentThread() : "startMigration can only run on the owning IOSelector thread";
+        assert ioSelector != newOwner : "newOwner can't be the same as the existing owner";
+
+        if (!socketChannel.isOpen()) {
+            // if the channel is closed, we are done.
+            return;
+        }
+
+        unregisterOp(initialOps);
+        ioSelector = newOwner;
+        selectionKey.cancel();
+        selectionKey = null;
+        selector = null;
+
+        newOwner.addTaskAndWakeup(new Runnable() {
+            @Override
+            public void run() {
+                completeMigration(newOwner);
+            }
+        });
+    }
+
+    private void completeMigration(IOSelector newOwner) {
+        assert ioSelector == newOwner;
+
+        if (!socketChannel.isOpen()) {
+            return;
+        }
+
+        selector = newOwner.getSelector();
+        selectionKey = getSelectionKey();
+        registerOp(initialOps);
     }
 }

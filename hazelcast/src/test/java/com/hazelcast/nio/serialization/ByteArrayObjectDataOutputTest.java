@@ -82,6 +82,7 @@ public class ByteArrayObjectDataOutputTest {
         assertEquals(unsignedCharV, readByte);
     }
 
+
     private short readShort(byte[] buffer) {
         int mostSig = buffer[0] & 0xff;
         int leastSig = buffer[1] & 0xff;

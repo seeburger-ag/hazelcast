@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,9 @@ import java.util.Collection;
 
 public class MemberInfoUpdateOperation extends AbstractClusterOperation implements JoinOperation {
 
-    private Collection<MemberInfo> memberInfos;
-    private long masterTime = Clock.currentTimeMillis();
-    private boolean sendResponse;
+    protected Collection<MemberInfo> memberInfos;
+    protected long masterTime = Clock.currentTimeMillis();
+    protected boolean sendResponse;
 
     public MemberInfoUpdateOperation() {
         memberInfos = new ArrayList<MemberInfo>();
@@ -52,7 +52,7 @@ public class MemberInfoUpdateOperation extends AbstractClusterOperation implemen
     protected final void processMemberUpdate() {
         if (isValid()) {
             final ClusterServiceImpl clusterService = getService();
-            clusterService.setMasterTime(masterTime);
+            clusterService.getClusterClock().setMasterTime(masterTime);
             clusterService.updateMembers(memberInfos);
         }
     }

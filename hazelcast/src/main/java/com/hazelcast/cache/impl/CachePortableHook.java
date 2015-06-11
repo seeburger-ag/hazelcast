@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 package com.hazelcast.cache.impl;
 
 import com.hazelcast.cache.impl.client.CacheAddEntryListenerRequest;
+import com.hazelcast.cache.impl.client.CacheAddInvalidationListenerRequest;
+import com.hazelcast.cache.impl.client.CacheBatchInvalidationMessage;
 import com.hazelcast.cache.impl.client.CacheClearRequest;
 import com.hazelcast.cache.impl.client.CacheContainsKeyRequest;
 import com.hazelcast.cache.impl.client.CacheCreateConfigRequest;
@@ -34,8 +36,10 @@ import com.hazelcast.cache.impl.client.CacheManagementConfigRequest;
 import com.hazelcast.cache.impl.client.CachePutIfAbsentRequest;
 import com.hazelcast.cache.impl.client.CachePutRequest;
 import com.hazelcast.cache.impl.client.CacheRemoveEntryListenerRequest;
+import com.hazelcast.cache.impl.client.CacheRemoveInvalidationListenerRequest;
 import com.hazelcast.cache.impl.client.CacheRemoveRequest;
 import com.hazelcast.cache.impl.client.CacheReplaceRequest;
+import com.hazelcast.cache.impl.client.CacheSingleInvalidationMessage;
 import com.hazelcast.cache.impl.client.CacheSizeRequest;
 import com.hazelcast.nio.serialization.ClassDefinition;
 import com.hazelcast.nio.serialization.FactoryIdHelper;
@@ -70,7 +74,7 @@ public class CachePortableHook
     public static final int ADD_INVALIDATION_LISTENER = 12;
     public static final int INVALIDATION_MESSAGE = 13;
     public static final int REMOVE_INVALIDATION_LISTENER = 14;
-    public static final int SEND_STATS = 15;
+    public static final int BATCH_INVALIDATION_MESSAGE = 15;
     public static final int CREATE_CONFIG = 16;
     public static final int GET_CONFIG = 17;
     public static final int GET_ALL = 18;
@@ -148,27 +152,26 @@ public class CachePortableHook
                         return new CacheIterateRequest();
                     }
                 };
-                //TODO near cache impl related
-                //                constructors[ADD_INVALIDATION_LISTENER] = new ConstructorFunction<Integer, Portable>() {
-                //                    public Portable createNew(Integer arg) {
-                //                        return new CacheAddInvalidationListenerRequest();
-                //                    }
-                //                };
-                //                constructors[INVALIDATION_MESSAGE] = new ConstructorFunction<Integer, Portable>() {
-                //                    public Portable createNew(Integer arg) {
-                //                        return new CacheInvalidationMessage();
-                //                    }
-                //                };
-                //                constructors[REMOVE_INVALIDATION_LISTENER] = new ConstructorFunction<Integer, Portable>() {
-                //                    public Portable createNew(Integer arg) {
-                //                        return new CacheRemoveInvalidationListenerRequest();
-                //                    }
-                //                };
-                //                constructors[SEND_STATS] = new ConstructorFunction<Integer, Portable>() {
-                //                    public Portable createNew(Integer arg) {
-                //                        return new CachePushStatsRequest();
-                //                    }
-                //                };
+                constructors[ADD_INVALIDATION_LISTENER] = new ConstructorFunction<Integer, Portable>() {
+                    public Portable createNew(Integer arg) {
+                        return new CacheAddInvalidationListenerRequest();
+                    }
+                };
+                constructors[INVALIDATION_MESSAGE] = new ConstructorFunction<Integer, Portable>() {
+                    public Portable createNew(Integer arg) {
+                        return new CacheSingleInvalidationMessage();
+                    }
+                };
+                constructors[REMOVE_INVALIDATION_LISTENER] = new ConstructorFunction<Integer, Portable>() {
+                    public Portable createNew(Integer arg) {
+                        return new CacheRemoveInvalidationListenerRequest();
+                    }
+                };
+                constructors[BATCH_INVALIDATION_MESSAGE] = new ConstructorFunction<Integer, Portable>() {
+                    public Portable createNew(Integer arg) {
+                        return new CacheBatchInvalidationMessage();
+                    }
+                };
                 constructors[CREATE_CONFIG] = new ConstructorFunction<Integer, Portable>() {
                     public Portable createNew(Integer arg) {
                         return new CacheCreateConfigRequest();

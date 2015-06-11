@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import com.hazelcast.map.impl.mapstore.MapDataStore;
 import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.map.merge.MapMergePolicy;
 import com.hazelcast.nio.serialization.Data;
+import com.hazelcast.spi.exception.RetryableHazelcastException;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -43,7 +44,14 @@ public interface RecordStore {
 
     Record putBackup(Data key, Object value);
 
-    Record putBackup(Data key, Object value, long ttl);
+    /**
+     * @param key          the key to be processed.
+     * @param value        the value to be processed.
+     * @param ttl          milliseconds. Check out {@link com.hazelcast.map.impl.proxy.MapProxySupport#putInternal}
+     * @param putTransient {@code true} if putting transient entry, otherwise {@code false}
+     * @return previous record if exists otherwise null.
+     */
+    Record putBackup(Data key, Object value, long ttl, boolean putTransient);
 
     boolean tryPut(Data dataKey, Object value, long ttl);
 
@@ -230,9 +238,7 @@ public interface RecordStore {
 
     boolean isLoaded();
 
-    void checkIfLoaded();
-
-    void setLoaded(boolean loaded);
+    void checkIfLoaded() throws RetryableHazelcastException;
 
     int clear();
 
@@ -253,12 +259,15 @@ public interface RecordStore {
     boolean isExpirable();
 
     /**
-     * Loads all keys from defined map store.
+     * Loads all given keys from defined map store.
      *
      * @param keys                  keys to be loaded.
      * @param replaceExistingValues <code>true</code> if need to replace existing values otherwise <code>false</code>
+     * @param lastBatch when keys are sent is batches this indicates the last batch. Used to indicate loading is complete.
      */
     void loadAllFromStore(List<Data> keys, boolean replaceExistingValues);
+
+    void updateLoadStatus(boolean lastBatch, Throwable exception);
 
     MapDataStore<Data, Object> getMapDataStore();
 
@@ -275,4 +284,13 @@ public interface RecordStore {
 
     void evictEntries(long now, boolean backup);
 
+    /**
+     * Loads all keys and values
+     *
+     * @param replaceExistingValues <code>true</code> if need to replace existing values otherwise <code>false</code>
+     **/
+    void loadAll(boolean replaceExistingValues);
+
+    /** Performs initial loading from a MapLoader if it has not been done before  **/
+    void maybeDoInitialLoad();
 }

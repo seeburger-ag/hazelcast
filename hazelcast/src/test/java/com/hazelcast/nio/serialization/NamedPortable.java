@@ -5,22 +5,21 @@ import java.io.IOException;
 /**
 * @author mdogan 22/05/14
 */
-class NamedPortable implements Portable {
-    static final short CLASS_ID = 3;
+public class NamedPortable implements Portable {
 
     String name;
     int k;
 
-    NamedPortable() {
+    public NamedPortable() {
     }
 
-    NamedPortable(String name, int k) {
+    public NamedPortable(String name, int k) {
         this.name = name;
         this.k = k;
     }
 
     public int getClassId() {
-        return CLASS_ID;
+        return TestSerializationConstants.NAMED_PORTABLE;
     }
 
     public void writePortable(PortableWriter writer) throws IOException {
@@ -54,7 +53,7 @@ class NamedPortable implements Portable {
     }
 
     public int getFactoryId() {
-        return PortableTest.FACTORY_ID;
+        return TestSerializationConstants.PORTABLE_FACTORY_ID;
     }
 
     @Override

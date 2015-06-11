@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package com.hazelcast.client.txn.proxy;
 
-import com.hazelcast.client.txn.TransactionContextProxy;
+import com.hazelcast.client.spi.ClientTransactionContext;
 import com.hazelcast.multimap.impl.MultiMapService;
 import com.hazelcast.multimap.impl.client.TxnMultiMapGetRequest;
 import com.hazelcast.multimap.impl.client.TxnMultiMapRemoveAllRequest;
@@ -39,8 +39,8 @@ import java.util.List;
  */
 public class ClientTxnMultiMapProxy<K, V> extends ClientTxnProxy implements TransactionalMultiMap<K, V> {
 
-    public ClientTxnMultiMapProxy(String name, TransactionContextProxy proxy) {
-        super(name, proxy);
+    public ClientTxnMultiMapProxy(String name, ClientTransactionContext transactionContext) {
+        super(name, transactionContext);
     }
 
     public boolean put(K key, V value) throws TransactionException {

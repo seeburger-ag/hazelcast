@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ import java.util.logging.Level;
 import static com.hazelcast.util.FutureUtil.ExceptionHandler;
 import static com.hazelcast.util.FutureUtil.logAllExceptions;
 import static com.hazelcast.util.FutureUtil.waitWithDeadline;
+import static com.hazelcast.util.Preconditions.checkNotNull;
 import static com.hazelcast.util.UuidUtil.buildRandomUuidString;
 
 public class ExecutorServiceProxy
@@ -90,6 +91,7 @@ public class ExecutorServiceProxy
         this.name = name;
         this.partitionCount = nodeEngine.getPartitionService().getPartitionCount();
         this.logger = nodeEngine.getLogger(ExecutorServiceProxy.class);
+        getLocalExecutorStats();
     }
 
     @Override
@@ -151,9 +153,8 @@ public class ExecutorServiceProxy
     }
 
     private <T> RunnableAdapter<T> createRunnableAdapter(Runnable command) {
-        if (command == null) {
-            throw new NullPointerException();
-        }
+        checkNotNull(command, "Command can't be null");
+
         return new RunnableAdapter<T>(command);
     }
 
@@ -189,12 +190,8 @@ public class ExecutorServiceProxy
 
     @Override
     public <T> Future<T> submit(Runnable task, T result) {
-        if (task == null) {
-            throw new NullPointerException();
-        }
-        if (isShutdown()) {
-            throw new RejectedExecutionException(getRejectionMessage());
-        }
+        checkNotNull(task, "task can't be null");
+        checkNotShutdown();
 
         NodeEngine nodeEngine = getNodeEngine();
         Callable<T> callable = createRunnableAdapter(task);
@@ -216,6 +213,12 @@ public class ExecutorServiceProxy
         return new CancellableDelegatingFuture<T>(future, result, nodeEngine, uuid, partitionId);
     }
 
+    private void checkNotShutdown() {
+        if (isShutdown()) {
+            throw new RejectedExecutionException(getRejectionMessage());
+        }
+    }
+
     private InternalCompletableFuture invoke(int partitionId, CallableTaskOperation op) {
         NodeEngine nodeEngine = getNodeEngine();
         OperationService operationService = nodeEngine.getOperationService();
@@ -229,12 +232,9 @@ public class ExecutorServiceProxy
     }
 
     private <T> Future<T> submitToPartitionOwner(Callable<T> task, int partitionId, boolean preventSync) {
-        if (task == null) {
-            throw new NullPointerException("task can't be null");
-        }
-        if (isShutdown()) {
-            throw new RejectedExecutionException(getRejectionMessage());
-        }
+        checkNotNull(task, "task can't be null");
+        checkNotShutdown();
+
         NodeEngine nodeEngine = getNodeEngine();
         Data taskData = nodeEngine.toData(task);
         String uuid = buildRandomUuidString();
@@ -272,14 +272,13 @@ public class ExecutorServiceProxy
     }
 
     private <T> int getTaskPartitionId(Callable<T> task) {
-        int partitionId;
         if (task instanceof PartitionAware) {
-            final Object partitionKey = ((PartitionAware) task).getPartitionKey();
-            partitionId = getNodeEngine().getPartitionService().getPartitionId(partitionKey);
-        } else {
-            partitionId = random.nextInt(partitionCount);
+            Object partitionKey = ((PartitionAware) task).getPartitionKey();
+            if (partitionKey != null) {
+                return getNodeEngine().getPartitionService().getPartitionId(partitionKey);
+            }
         }
-        return partitionId;
+        return random.nextInt(partitionCount);
     }
 
     @Override
@@ -290,12 +289,9 @@ public class ExecutorServiceProxy
 
     @Override
     public <T> Future<T> submitToMember(Callable<T> task, Member member) {
-        if (task == null) {
-            throw new NullPointerException("task can't be null");
-        }
-        if (isShutdown()) {
-            throw new RejectedExecutionException(getRejectionMessage());
-        }
+        checkNotNull(task, "task can't be null");
+        checkNotShutdown();
+
         NodeEngine nodeEngine = getNodeEngine();
         Data taskData = nodeEngine.toData(task);
         String uuid = buildRandomUuidString();
@@ -363,9 +359,8 @@ public class ExecutorServiceProxy
     }
 
     private <T> void submitToPartitionOwner(Callable<T> task, ExecutionCallback<T> callback, int partitionId) {
-        if (isShutdown()) {
-            throw new RejectedExecutionException(getRejectionMessage());
-        }
+        checkNotShutdown();
+
         NodeEngine nodeEngine = getNodeEngine();
         Data taskData = nodeEngine.toData(task);
         CallableTaskOperation op = new CallableTaskOperation(name, null, taskData);
@@ -386,10 +381,10 @@ public class ExecutorServiceProxy
         submitToPartitionOwner(task, callback, nodeEngine.getPartitionService().getPartitionId(key));
     }
 
+    @Override
     public <T> void submitToMember(Callable<T> task, Member member, ExecutionCallback<T> callback) {
-        if (isShutdown()) {
-            throw new RejectedExecutionException(getRejectionMessage());
-        }
+        checkNotShutdown();
+
         NodeEngine nodeEngine = getNodeEngine();
         Data taskData = nodeEngine.toData(task);
         MemberCallableTaskOperation op = new MemberCallableTaskOperation(name, null, taskData);
@@ -444,12 +439,9 @@ public class ExecutorServiceProxy
     @Override
     public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
             throws InterruptedException {
-        if (unit == null) {
-            throw new NullPointerException("unit must not be null");
-        }
-        if (tasks == null) {
-            throw new NullPointerException("tasks must not be null");
-        }
+        checkNotNull(unit, "unit must not be null");
+        checkNotNull(tasks, "tasks must not be null");
+
         long timeoutNanos = unit.toNanos(timeout);
         List<Future<T>> futures = new ArrayList<Future<T>>(tasks.size());
         boolean done = false;

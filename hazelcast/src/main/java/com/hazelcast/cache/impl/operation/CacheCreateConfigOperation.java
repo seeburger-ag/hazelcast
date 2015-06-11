@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.hazelcast.cache.impl.operation;
 
 import com.hazelcast.cache.impl.AbstractCacheService;
 import com.hazelcast.cache.impl.CacheDataSerializerHook;
+import com.hazelcast.cache.impl.CacheService;
 import com.hazelcast.config.CacheConfig;
 import com.hazelcast.instance.MemberImpl;
 import com.hazelcast.nio.ObjectDataInput;
@@ -40,10 +41,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <li>Find partition id using the distributed object name of cache as a key.</li>
  * <li>Send the <code>CacheCreateConfigOperation</code> operation to the calculated partition which will force all
  * clusters to be single threaded.</li>
- * <li>{@link com.hazelcast.cache.impl.CacheService#createCacheConfigIfAbsent(com.hazelcast.config.CacheConfig)} is called.</li>
+ * <li>{@link CacheService#createCacheConfigIfAbsent(com.hazelcast.config.CacheConfig)} is called.</li>
  * </ul></p>
  * <p>This operation's purpose is to pass the required parameters into
- * {@link com.hazelcast.cache.impl.CacheService#createCacheConfigIfAbsent(com.hazelcast.config.CacheConfig)}.</p>
+ * {@link CacheService#createCacheConfigIfAbsent(com.hazelcast.config.CacheConfig)}.</p>
  */
 public class CacheCreateConfigOperation
         extends AbstractNamedOperation
@@ -51,6 +52,7 @@ public class CacheCreateConfigOperation
 
     private CacheConfig config;
     private boolean createAlsoOnOthers = true;
+    private boolean ignoreLocal;
 
     private boolean returnsResponse = true;
     private transient Object response;
@@ -63,16 +65,27 @@ public class CacheCreateConfigOperation
     }
 
     public CacheCreateConfigOperation(CacheConfig config, boolean createAlsoOnOthers) {
+        this(config, createAlsoOnOthers, false);
+    }
+
+    public CacheCreateConfigOperation(CacheConfig config, boolean createAlsoOnOthers, boolean ignoreLocal) {
         super(config.getNameWithPrefix());
         this.config = config;
         this.createAlsoOnOthers = createAlsoOnOthers;
+        this.ignoreLocal = ignoreLocal;
+    }
+
+    @Override
+    public String getServiceName() {
+        return CacheService.SERVICE_NAME;
     }
 
     @Override
     public void run() throws Exception {
         AbstractCacheService service = getService();
-        response = service.createCacheConfigIfAbsent(config);
-
+        if (!ignoreLocal) {
+            response = service.createCacheConfigIfAbsent(config);
+        }
         if (createAlsoOnOthers) {
             NodeEngine nodeEngine = getNodeEngine();
             Collection<MemberImpl> members = nodeEngine.getClusterService().getMemberList();
@@ -136,6 +149,7 @@ public class CacheCreateConfigOperation
         super.writeInternal(out);
         out.writeObject(config);
         out.writeBoolean(createAlsoOnOthers);
+        out.writeBoolean(ignoreLocal);
     }
 
     @Override
@@ -144,6 +158,7 @@ public class CacheCreateConfigOperation
         super.readInternal(in);
         config = in.readObject();
         createAlsoOnOthers = in.readBoolean();
+        ignoreLocal = in.readBoolean();
     }
 
     @Override

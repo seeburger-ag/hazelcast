@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import static com.hazelcast.util.Preconditions.isNotNull;
+
 /**
  * Support class for loading Hazelcast services and hooks based on the Java ServiceLoader specification
  * but changed in the fact of classloaders to test for given services to work in multi classloader
@@ -46,7 +48,7 @@ public final class ServiceLoader {
     private static final ILogger LOGGER = Logger.getLogger(ServiceLoader.class);
     private static final String FILTERING_CLASS_LOADER = FilteringClassLoader.class.getCanonicalName();
 
-    //see https://github.com/hazelcast/hazelcast/issues/3922
+    // See https://github.com/hazelcast/hazelcast/issues/3922
     private static final String IGNORED_GLASSFISH_MAGIC_CLASSLOADER =
             "com.sun.enterprise.v3.server.APIClassLoaderServiceImpl$APIClassLoader";
 
@@ -250,10 +252,8 @@ public final class ServiceLoader {
         private final ClassLoader classLoader;
 
         private ServiceDefinition(String className, ClassLoader classLoader) {
-            ValidationUtil.isNotNull(className, "className");
-            ValidationUtil.isNotNull(classLoader, "classLoader");
-            this.className = className;
-            this.classLoader = classLoader;
+            this.className = isNotNull(className, "className");
+            this.classLoader = isNotNull(classLoader, "classLoader");
         }
 
         @Override

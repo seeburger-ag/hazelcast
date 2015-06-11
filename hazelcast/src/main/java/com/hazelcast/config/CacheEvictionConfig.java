@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,85 +16,44 @@
 
 package com.hazelcast.config;
 
-import com.hazelcast.cache.impl.eviction.EvictionConfig;
-import com.hazelcast.cache.impl.eviction.EvictionPolicyType;
-import com.hazelcast.cache.impl.eviction.EvictionStrategyType;
-import com.hazelcast.nio.ObjectDataInput;
-import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.nio.serialization.DataSerializable;
-
-import java.io.IOException;
-import java.io.Serializable;
-
-import static com.hazelcast.config.CacheSimpleConfig.DEFAULT_EVICTION_POLICY;
+import static com.hazelcast.util.Preconditions.checkNotNull;
 
 /**
- * Configuration for cache's capacity.
- * You can set a limit for number of entries or total memory cost of entries.
+ * Configuration for cache eviction.
+ *
+ * @see com.hazelcast.config.EvictionConfig
+ *
+ * @deprecated Use {@link com.hazelcast.config.EvictionConfig} instead of this
  */
+@Deprecated
 public class CacheEvictionConfig
-        implements EvictionConfig, DataSerializable, Serializable {
-
-    /**
-     * Default maximum entry count of cache.
-     */
-    public static final int DEFAULT_MAX_ENTRY_COUNT = 10000;
-
-    private int size = DEFAULT_MAX_ENTRY_COUNT;
-    private CacheMaxSizePolicy maxSizePolicy = CacheMaxSizePolicy.ENTRY_COUNT;
-    private EvictionPolicy evictionPolicy = DEFAULT_EVICTION_POLICY;
-
-    private CacheEvictionConfigReadOnly readOnly;
+        extends EvictionConfig {
 
     public CacheEvictionConfig() {
     }
 
-    public CacheEvictionConfig(int size, CacheMaxSizePolicy maxSizePolicy, EvictionPolicy evictionPolicy) {
-        /**
-         * ===== NOTE =====
-         *
-         * Do not use setters, because they are overriden in readonly version of this config and
-         * cause "UnsupportedOperationException". So just set directly if value is valid.
-         */
-
-        // Size cannot be non-positive number
-        if (size > 0) {
-            this.size = size;
-        }
-        // Max-Size policy cannot be null
-        if (maxSizePolicy != null) {
-            this.maxSizePolicy = maxSizePolicy;
-        }
-        // Eviction policy cannot be null or NONE
-        if (evictionPolicy != null && evictionPolicy != EvictionPolicy.NONE) {
-            this.evictionPolicy = evictionPolicy;
-        }
+    public CacheEvictionConfig(int size, MaxSizePolicy maxSizePolicy, EvictionPolicy evictionPolicy) {
+        super(size, maxSizePolicy, evictionPolicy);
     }
 
-    public CacheEvictionConfig(CacheEvictionConfig config) {
-        /**
-         * ===== NOTE =====
-         *
-         * Do not use setters, because they are overriden in readonly version of this config and
-         * cause "UnsupportedOperationException". So just set directly if value is valid.
-         */
+    public CacheEvictionConfig(int size, CacheMaxSizePolicy cacheMaxSizePolicy, EvictionPolicy evictionPolicy) {
+        super(size, cacheMaxSizePolicy != null ? cacheMaxSizePolicy.toMaxSizePolicy() : null, evictionPolicy);
+    }
 
-        // Size cannot be non-positive number
-        if (config.size > 0) {
-            this.size = config.size;
+    public CacheEvictionConfig(EvictionConfig config) {
+        super(config);
+    }
+
+    @Override
+    public EvictionConfig getAsReadOnly() {
+        if (readOnly == null) {
+            readOnly = new CacheEvictionConfigReadOnly(this);
         }
-        // Max-Size policy cannot be null
-        if (config.maxSizePolicy != null) {
-            this.maxSizePolicy = config.maxSizePolicy;
-        }
-        // Eviction policy cannot be null or NONE
-        if (config.evictionPolicy != null && config.evictionPolicy != EvictionPolicy.NONE) {
-            this.evictionPolicy = config.evictionPolicy;
-        }
+        return readOnly;
     }
 
     /**
-     * Maximum Size Policy
+     * Cache Maximum Size Policy
      */
     public enum CacheMaxSizePolicy {
         /**
@@ -116,81 +75,98 @@ public class CacheEvictionConfig
         /**
          * Decide minimum free native memory percentage to trigger cleanup
          */
-        FREE_NATIVE_MEMORY_PERCENTAGE
-    }
+        FREE_NATIVE_MEMORY_PERCENTAGE;
 
-    public CacheEvictionConfigReadOnly getAsReadOnly() {
-        if (readOnly == null) {
-            readOnly = new CacheEvictionConfigReadOnly(this);
+        public MaxSizePolicy toMaxSizePolicy() {
+            switch (this) {
+                case ENTRY_COUNT:
+                    return MaxSizePolicy.ENTRY_COUNT;
+                case USED_NATIVE_MEMORY_SIZE:
+                    return MaxSizePolicy.USED_NATIVE_MEMORY_SIZE;
+                case USED_NATIVE_MEMORY_PERCENTAGE:
+                    return MaxSizePolicy.USED_NATIVE_MEMORY_PERCENTAGE;
+                case FREE_NATIVE_MEMORY_SIZE:
+                    return MaxSizePolicy.FREE_NATIVE_MEMORY_SIZE;
+                case FREE_NATIVE_MEMORY_PERCENTAGE:
+                    return MaxSizePolicy.FREE_NATIVE_MEMORY_PERCENTAGE;
+                default:
+                    throw new IllegalArgumentException("Invalid Cache Max-Size policy for converting to MaxSizePolicy");
+            }
         }
-        return readOnly;
-    }
 
-    public int getSize() {
-        return size;
-    }
-
-    public CacheEvictionConfig setSize(int size) {
-        if (size > 0) {
-            this.size = size;
+        public static CacheMaxSizePolicy fromMaxSizePolicy(MaxSizePolicy maxSizePolicy) {
+            switch (maxSizePolicy) {
+                case ENTRY_COUNT:
+                    return CacheMaxSizePolicy.ENTRY_COUNT;
+                case USED_NATIVE_MEMORY_SIZE:
+                    return CacheMaxSizePolicy.USED_NATIVE_MEMORY_SIZE;
+                case USED_NATIVE_MEMORY_PERCENTAGE:
+                    return CacheMaxSizePolicy.USED_NATIVE_MEMORY_PERCENTAGE;
+                case FREE_NATIVE_MEMORY_SIZE:
+                    return CacheMaxSizePolicy.FREE_NATIVE_MEMORY_SIZE;
+                case FREE_NATIVE_MEMORY_PERCENTAGE:
+                    return CacheMaxSizePolicy.FREE_NATIVE_MEMORY_PERCENTAGE;
+                default:
+                    throw new IllegalArgumentException("Invalid Max-Size policy for converting to CacheMaxSizePolicy");
+            }
         }
-        return this;
     }
 
+    /**
+     * Gets the {@link com.hazelcast.config.EvictionConfig.MaxSizePolicy} as
+     * {@link com.hazelcast.config.CacheEvictionConfig.CacheMaxSizePolicy}.
+     *
+     * @return the {@link com.hazelcast.config.EvictionConfig.MaxSizePolicy} as
+     * {@link com.hazelcast.config.CacheEvictionConfig.CacheMaxSizePolicy}
+     *
+     * @deprecated Use {@link com.hazelcast.config.EvictionConfig#getMaximumSizePolicy()} instead of this
+     */
     public CacheMaxSizePolicy getMaxSizePolicy() {
-        return maxSizePolicy;
+        return CacheMaxSizePolicy.fromMaxSizePolicy(getMaximumSizePolicy());
     }
 
-    public CacheEvictionConfig setMaxSizePolicy(CacheMaxSizePolicy maxSizePolicy) {
-        // Max-Size policy cannot be null
-        if (maxSizePolicy != null) {
-            this.maxSizePolicy = maxSizePolicy;
-        }
+    /**
+     * Sets the {@link com.hazelcast.config.EvictionConfig.MaxSizePolicy} by using specified
+     * {@link com.hazelcast.config.CacheEvictionConfig.CacheMaxSizePolicy}.
+     *
+     * @param cacheMaxSizePolicy {@link com.hazelcast.config.CacheEvictionConfig.CacheMaxSizePolicy} to be converted
+     *                           and set as {@link com.hazelcast.config.EvictionConfig.MaxSizePolicy}
+     * @return this {@link com.hazelcast.config.CacheEvictionConfig}
+     *
+     * @deprecated Use {@link com.hazelcast.config.EvictionConfig#setMaximumSizePolicy(MaxSizePolicy)} instead of this
+     */
+    public CacheEvictionConfig setMaxSizePolicy(CacheMaxSizePolicy cacheMaxSizePolicy) {
+        checkNotNull(cacheMaxSizePolicy, "Cache Max-Size policy cannot be null !");
+        setMaximumSizePolicy(cacheMaxSizePolicy.toMaxSizePolicy());
         return this;
     }
 
-    public EvictionPolicy getEvictionPolicy() {
-        return evictionPolicy;
+    @Override
+    public CacheEvictionConfig setMaximumSizePolicy(MaxSizePolicy maxSizePolicy) {
+        super.setMaximumSizePolicy(maxSizePolicy);
+        return this;
     }
 
+    @Override
     public CacheEvictionConfig setEvictionPolicy(EvictionPolicy evictionPolicy) {
-        // Eviction policy cannot be null or NONE
-        if (evictionPolicy != null && evictionPolicy != EvictionPolicy.NONE) {
-            this.evictionPolicy = evictionPolicy;
-        }
+        super.setEvictionPolicy(evictionPolicy);
         return this;
     }
 
     @Override
-    public EvictionStrategyType getEvictionStrategyType() {
-        // TODO Add support for other/custom eviction strategies
-        return EvictionStrategyType.DEFAULT_EVICTION_STRATEGY;
+    public CacheEvictionConfig setSize(int size) {
+        super.setSize(size);
+        return this;
     }
 
     @Override
-    public EvictionPolicyType getEvictionPolicyType() {
-        if (evictionPolicy == EvictionPolicy.LFU) {
-            return EvictionPolicyType.LFU;
-        } else if (evictionPolicy == EvictionPolicy.LRU) {
-            return EvictionPolicyType.LRU;
-        } else {
-            return null;
-        }
+    public String toString() {
+        return "CacheEvictionConfig{"
+                + "size=" + size
+                + ", maxSizePolicy=" + maxSizePolicy
+                + ", evictionPolicy=" + evictionPolicy
+                + ", readOnly=" + readOnly
+                + '}';
     }
 
-    @Override
-    public void writeData(ObjectDataOutput out)
-            throws IOException {
-        out.writeInt(size);
-        out.writeUTF(maxSizePolicy.toString());
-        out.writeUTF(evictionPolicy.toString());
-    }
-
-    @Override
-    public void readData(ObjectDataInput in)
-            throws IOException {
-        size = in.readInt();
-        maxSizePolicy = CacheMaxSizePolicy.valueOf(in.readUTF());
-        evictionPolicy = EvictionPolicy.valueOf(in.readUTF());
-    }
 }

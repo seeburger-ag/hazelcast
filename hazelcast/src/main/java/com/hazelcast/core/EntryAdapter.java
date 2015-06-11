@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,11 @@
 package com.hazelcast.core;
 
 /**
- * Adapter for EntryListener.
+ * Adapter for {@link com.hazelcast.map.listener.MapListener}.
  *
  * @param <K> key of the map entry
  * @param <V> value of the map entry.
+ * @see com.hazelcast.map.listener.MapListener
  * @see com.hazelcast.core.EntryListener
  */
 public class EntryAdapter<K, V> implements EntryListener<K, V> {

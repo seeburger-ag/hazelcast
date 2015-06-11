@@ -1,10 +1,13 @@
 
 ### Tomcat Based Web Session Replication
 
+![](images/enterprise-onlycopy.jpg)
+
+<br></br>
+
 ![image](images/NoteSmall.jpg) ***NOTE:*** *This feature is supported for Hazelcast Enterprise 3.3 or higher.*
 
 
-![](images/enterprise-onlycopy.jpg)
 
 
 ***Sample Code:*** *Please see our [sample application](https://github.com/hazelcast/hazelcast-code-samples/tree/master/hazelcast-integration/enterprise-session-replication) for Tomcat Based Web Session Replication.*
@@ -16,7 +19,7 @@ Session Replication with Hazelcast Enterprise is a container specific module tha
 
 ***Features***
 
-1. Seamless Tomcat 6 & 7 integration
+1. Seamless Tomcat 6, 7 & 8 integration (Tomcat 8 is supported for Hazelcast Enterprise 3.5 or higher.)
 2. Support for sticky and non-sticky sessions
 3. Tomcat failover
 4. Deferred write for performance boost
@@ -28,8 +31,9 @@ Tomcat Web Session Replication Module has been tested against the following cont
 
 - Tomcat 6.0.x - It can be downloaded [here](http://tomcat.apache.org/download-60.cgi).
 - Tomcat 7.0.x - It can be downloaded [here](http://tomcat.apache.org/download-70.cgi).
+- Tomcat 8.0.x - It can be downloaded [here](http://tomcat.apache.org/download-80.cgi).
 
-The latest tested versions are **6.0.39** and **7.0.40**.
+The latest tested versions are **6.0.39**, **7.0.40** and **8.0.20**.
 <br></br>
 
 ***Requirements***
@@ -61,7 +65,8 @@ This type of deployment is simple: just configure your Tomcat and launch. There 
 - Go to [hazelcast.com](http://www.hazelcast.com/products/hazelcast-enterprise/) and download the latest Hazelcast Enterprise.
 - Unzip the Hazelcast Enterprise zip file into the folder `$HAZELCAST_ENTERPRISE_ROOT`.
 - Update `$HAZELCAST_ENTERPRISE_ROOT/bin/hazelcast.xml` with the provided Hazelcast Enterprise License Key. 
-- Put `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-enterprise-all-`<*version*>`.jar`,    `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-enterprise-`<*tomcatversion*>`-`<*version*>`.jar` and `hazelcast.xml` in the folder `$CATALINA_HOME/lib/`.
+- Put `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-enterprise-all-`<*version*>`.jar`,    `$HAZELCAST_
+ENTERPRISE_ROOT/lib/hazelcast-enterprise-`<*tomcatversion*>`-`<*version*>`.jar` and `hazelcast.xml` in the folder `$CATALINA_HOME/lib/`.
 
 - Put a `<Listener>` element into the file `$CATALINA_HOME$/conf/server.xml` as shown below.
 
@@ -106,7 +111,8 @@ In this deployment type, Tomcat instances work as clients on an existing Hazelca
 
 - Go to [hazelcast.com](http://www.hazelcast.com/products/hazelcast-enterprise/) and download the latest Hazelcast Enterprise.
 - Unzip the Hazelcast Enterprise zip file into the folder `$HAZELCAST_ENTERPRISE_ROOT`.
-- Put `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-client-`<*version*>`.jar`,            `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-enterprise-`<*version*>`.jar` and           `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-enterprise-`<*tomcatversion*>`-`<*version*>`.jar` in the folder `$CATALINA_HOME/lib/`.
+- Put `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-client-`<*version*>`.jar`,            `$HAZELCAST_
+ENTERPRISE_ROOT/lib/hazelcast-enterprise-`<*version*>`.jar` and           `$HAZELCAST_ENTERPRISE_ROOT/lib/hazelcast-enterprise-`<*tomcatversion*>`-`<*version*>`.jar` in the folder `$CATALINA_HOME/lib/`.
 
 - Put a `<Listener>` element into the `$CATALINA_HOME$/conf/server.xml` as shown below.
 
@@ -126,7 +132,8 @@ In this deployment type, Tomcat instances work as clients on an existing Hazelca
       clientOnly="true"/>
 </Context>
 ```
-- Launch a Hazelcast Instance using `$HAZELCAST_ENTERPRISE_ROOT/bin/server.sh` or `$HAZELCAST_ENTERPRISE_ROOT/bin/server.bat`.
+- Launch a Hazelcast Instance using `$HAZELCAST_ENTERPRISE_ROOT/bin/server.sh` or `$HAZELCAST_
+ENTERPRISE_ROOT/bin/server.bat`.
 
 - Start Tomcat instances with a configured load balancer and deploy the web application.
 

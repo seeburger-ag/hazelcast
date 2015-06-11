@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package com.hazelcast.instance;
 
-import com.hazelcast.memory.GarbageCollectorStats;
+import com.hazelcast.client.impl.protocol.MessageTaskFactory;
+import com.hazelcast.internal.storage.DataRef;
+import com.hazelcast.internal.storage.Storage;
 import com.hazelcast.memory.MemoryStats;
 import com.hazelcast.nio.IOService;
 import com.hazelcast.nio.MemberSocketInterceptor;
@@ -26,8 +28,6 @@ import com.hazelcast.nio.tcp.PacketWriter;
 import com.hazelcast.nio.tcp.SocketChannelWrapperFactory;
 import com.hazelcast.nio.tcp.TcpIpConnection;
 import com.hazelcast.security.SecurityContext;
-import com.hazelcast.storage.DataRef;
-import com.hazelcast.storage.Storage;
 
 /**
  * NodeExtension is a <tt>Node</tt> extension mechanism to be able to plug different implementations of
@@ -114,6 +114,13 @@ public interface NodeExtension {
      */
     PacketWriter createPacketWriter(TcpIpConnection connection, IOService ioService);
 
+    /***
+     * Creates factory method that creates server side client message handlers
+     *
+     * @param node node
+     */
+    MessageTaskFactory createMessageTaskFactory(Node node);
+
     /**
      * Called on thread start to inject/intercept extension specific logic,
      * like; registering thread in some service,
@@ -142,4 +149,13 @@ public interface NodeExtension {
      */
     void destroy();
 
+    /**
+     * Called before a new node is joining to cluster,
+     * executed if node is the master node before join event.
+     * {@link com.hazelcast.cluster.impl.ClusterServiceImpl} calls this method,
+     * when handleJoinRequest method is called. By this way, we can check the logic we want
+     * by implementing this method. Implementation should throw required exception, with a valid
+     * message which explains rejection reason.
+     */
+    void beforeJoin();
 }

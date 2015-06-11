@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.hazelcast.cache.impl.record;
 
 import com.hazelcast.cache.impl.eviction.Evictable;
+import com.hazelcast.cache.impl.eviction.Expirable;
 
 /**
  * <p>
@@ -27,6 +28,10 @@ import com.hazelcast.cache.impl.eviction.Evictable;
  * @param <V> the type of the value stored by this {@link CacheRecord}
  */
 public interface CacheRecord<V> extends Expirable, Evictable {
+
+    int EXPIRATION_TIME_NOT_AVAILABLE = -1;
+
+    int ACCESS_HIT_NOT_AVAILABLE = -1;
 
     /**
      * Gets the value of this {@link CacheRecord}.

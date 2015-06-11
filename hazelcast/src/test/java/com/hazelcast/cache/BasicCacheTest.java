@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2013, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,8 +108,7 @@ public class BasicCacheTest
 
         assertTrueEventually(new AssertTask() {
             @Override
-            public void run()
-                    throws Exception {
+            public void run() throws Exception {
                 CacheManager cm2 = cachingProvider2.getCacheManager();
                 assertNotNull(cm2.getCache(cacheName));
             }
@@ -282,8 +281,7 @@ public class BasicCacheTest
         cacheManager.destroyCache("c1");
         assertTrueEventually(new AssertTask() {
             @Override
-            public void run()
-                    throws Exception {
+            public void run() throws Exception {
                 try {
                     c2.get("key");
                     throw new AssertionError("get should throw IllegalStateException");
@@ -306,8 +304,7 @@ public class BasicCacheTest
         cacheManager.close();
         assertTrueAllTheTime(new AssertTask() {
             @Override
-            public void run()
-                    throws Exception {
+            public void run() throws Exception {
                 c2.get("key");
             }
         }, 10);
@@ -320,7 +317,8 @@ public class BasicCacheTest
         CacheConfig<Integer, String> config = new CacheConfig<Integer, String>();
         config.setName("SimpleCache");
 
-        ICache<Integer, String> cache = (ICache<Integer, String>) cacheManager.createCache("simpleCache", config);
+        ICache<Integer, String> cache =
+                (ICache<Integer, String>) cacheManager.createCache("simpleCache", config);
 
         int testSize = 1007;
         for (int i = 0; i < testSize; i++) {
@@ -385,19 +383,20 @@ public class BasicCacheTest
         config.setTypes(Integer.class, Long.class);
 
         Cache<Integer, Long> cache = cacheManager.createCache(cacheName, config);
-        Cache<Integer, Long> cache2 = cacheManager.getCache(cacheName, config.getKeyType(), config.getValueType());
+        Cache<Integer, Long> cache2 =
+                cacheManager.getCache(cacheName, config.getKeyType(), config.getValueType());
 
         assertNotNull(cache);
         assertNotNull(cache2);
     }
 
     public static class SimpleEntryListener<K, V>
-            implements CacheEntryListener<K, V>,
-                       CacheEntryCreatedListener<K, V>,
-                       CacheEntryUpdatedListener<K, V>,
-                       CacheEntryRemovedListener<K, V>,
-                       CacheEntryExpiredListener<K, V>,
-                       Serializable {
+            implements  CacheEntryListener<K, V>,
+                        CacheEntryCreatedListener<K, V>,
+                        CacheEntryUpdatedListener<K, V>,
+                        CacheEntryRemovedListener<K, V>,
+                        CacheEntryExpiredListener<K, V>,
+                        Serializable {
 
         public AtomicInteger created = new AtomicInteger();
         public AtomicInteger expired = new AtomicInteger();

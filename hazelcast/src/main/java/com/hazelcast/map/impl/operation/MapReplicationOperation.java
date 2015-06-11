@@ -22,9 +22,10 @@ import com.hazelcast.map.impl.MapService;
 import com.hazelcast.map.impl.MapServiceContext;
 import com.hazelcast.map.impl.PartitionContainer;
 import com.hazelcast.map.impl.RecordStore;
-import com.hazelcast.map.impl.mapstore.writebehind.DelayedEntry;
 import com.hazelcast.map.impl.mapstore.writebehind.WriteBehindQueue;
 import com.hazelcast.map.impl.mapstore.writebehind.WriteBehindStore;
+import com.hazelcast.map.impl.mapstore.writebehind.entry.DelayedEntries;
+import com.hazelcast.map.impl.mapstore.writebehind.entry.DelayedEntry;
 import com.hazelcast.map.impl.record.Record;
 import com.hazelcast.map.impl.record.RecordInfo;
 import com.hazelcast.map.impl.record.RecordReplicationInfo;
@@ -33,6 +34,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.Data;
 import com.hazelcast.spi.AbstractOperation;
+import com.hazelcast.spi.impl.MutatingOperation;
 import com.hazelcast.util.Clock;
 
 import java.io.IOException;
@@ -48,10 +50,10 @@ import java.util.Set;
 
 import static com.hazelcast.map.impl.record.Records.applyRecordInfo;
 
-public class MapReplicationOperation extends AbstractOperation {
+public class MapReplicationOperation extends AbstractOperation implements MutatingOperation {
 
     private Map<String, Set<RecordReplicationInfo>> data;
-    private Map<String, List<DelayedEntry>> delayedEntries;
+    private Map<String, Collection<DelayedEntry>> delayedEntries;
 
     public MapReplicationOperation() {
     }
@@ -84,7 +86,7 @@ public class MapReplicationOperation extends AbstractOperation {
     }
 
     private void readDelayedEntries(PartitionContainer container) {
-        delayedEntries = new HashMap<String, List<DelayedEntry>>(container.getMaps().size());
+        delayedEntries = new HashMap<String, Collection<DelayedEntry>>(container.getMaps().size());
         for (Entry<String, RecordStore> entry : container.getMaps().entrySet()) {
             RecordStore recordStore = entry.getValue();
             MapContainer mapContainer = recordStore.getMapContainer();
@@ -93,7 +95,7 @@ public class MapReplicationOperation extends AbstractOperation {
             }
             final WriteBehindQueue<DelayedEntry> writeBehindQueue = ((WriteBehindStore) recordStore.getMapDataStore())
                     .getWriteBehindQueue();
-            final List<DelayedEntry> delayedEntries = writeBehindQueue.getSnapShot().asList();
+            final Collection<DelayedEntry> delayedEntries = writeBehindQueue.asList();
             if (delayedEntries != null && delayedEntries.size() == 0) {
                 continue;
             }
@@ -111,6 +113,7 @@ public class MapReplicationOperation extends AbstractOperation {
                 final String mapName = dataEntry.getKey();
                 RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), mapName);
                 recordStore.reset();
+
                 for (RecordReplicationInfo recordReplicationInfo : recordReplicationInfos) {
                     Data key = recordReplicationInfo.getKey();
                     final Data value = recordReplicationInfo.getValue();
@@ -119,14 +122,11 @@ public class MapReplicationOperation extends AbstractOperation {
                     applyRecordInfo(newRecord, recordReplicationInfo);
                     recordStore.putRecord(key, newRecord);
                 }
-                recordStore.setLoaded(true);
-
             }
         }
 
-        for (Entry<String, List<DelayedEntry>> entry : delayedEntries.entrySet()) {
-            String mapName = entry.getKey();
-            RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), mapName);
+        for (Entry<String, Collection<DelayedEntry>> entry : delayedEntries.entrySet()) {
+            RecordStore recordStore = mapServiceContext.getRecordStore(getPartitionId(), entry.getKey());
             WriteBehindStore mapDataStore = (WriteBehindStore) recordStore.getMapDataStore();
             mapDataStore.clear();
 
@@ -137,10 +137,12 @@ public class MapReplicationOperation extends AbstractOperation {
         }
     }
 
+    @Override
     public String getServiceName() {
         return MapService.SERVICE_NAME;
     }
 
+    @Override
     protected void readInternal(final ObjectDataInput in) throws IOException {
         int size = in.readInt();
         data = new HashMap<String, Set<RecordReplicationInfo>>(size);
@@ -155,7 +157,7 @@ public class MapReplicationOperation extends AbstractOperation {
             data.put(name, recordReplicationInfos);
         }
         size = in.readInt();
-        delayedEntries = new HashMap<String, List<DelayedEntry>>(size);
+        delayedEntries = new HashMap<String, Collection<DelayedEntry>>(size);
         for (int i = 0; i < size; i++) {
             final String mapName = in.readUTF();
             final int listSize = in.readInt();
@@ -165,13 +167,15 @@ public class MapReplicationOperation extends AbstractOperation {
                 Data value = in.readData();
                 long storeTime = in.readLong();
                 int partitionId = in.readInt();
-                DelayedEntry<Data, Data> entry = DelayedEntry.create(key, value, storeTime, partitionId);
+
+                DelayedEntry<Data, Data> entry = DelayedEntries.createDefault(key, value, storeTime, partitionId);
                 delayedEntriesList.add(entry);
             }
             delayedEntries.put(mapName, delayedEntriesList);
         }
     }
 
+    @Override
     protected void writeInternal(final ObjectDataOutput out) throws IOException {
         out.writeInt(data.size());
         for (Entry<String, Set<RecordReplicationInfo>> mapEntry : data.entrySet()) {
@@ -185,9 +189,9 @@ public class MapReplicationOperation extends AbstractOperation {
         final MapService mapService = getService();
         final MapServiceContext mapServiceContext = mapService.getMapServiceContext();
         out.writeInt(delayedEntries.size());
-        for (Entry<String, List<DelayedEntry>> entry : delayedEntries.entrySet()) {
+        for (Entry<String, Collection<DelayedEntry>> entry : delayedEntries.entrySet()) {
             out.writeUTF(entry.getKey());
-            final List<DelayedEntry> delayedEntryList = entry.getValue();
+            final Collection<DelayedEntry> delayedEntryList = entry.getValue();
             out.writeInt(delayedEntryList.size());
             for (DelayedEntry e : delayedEntryList) {
                 final Data key = mapServiceContext.toData(e.getKey());
@@ -209,5 +213,4 @@ public class MapReplicationOperation extends AbstractOperation {
         return new RecordReplicationInfo(record.getKey(), mapService.getMapServiceContext().toData(record.getValue()),
                 info);
     }
-
 }

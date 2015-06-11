@@ -7,24 +7,19 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.MapStore;
 import com.hazelcast.core.PostProcessingMapStore;
-import com.hazelcast.core.TransactionalMap;
 import com.hazelcast.test.HazelcastParallelClassRunner;
 import com.hazelcast.test.HazelcastTestSupport;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import com.hazelcast.test.annotation.QuickTest;
-import com.hazelcast.transaction.TransactionException;
-import com.hazelcast.transaction.TransactionalTask;
-import com.hazelcast.transaction.TransactionalTaskContext;
-import java.util.concurrent.ConcurrentHashMap;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,88 +28,9 @@ import static org.junit.Assert.assertEquals;
 public class PostProcessingMapStoreTest extends HazelcastTestSupport {
 
     @Test
-    public void testProcessedValueCarriedToTheBackup_whenPut() {
-        String name = randomString();
-        HazelcastInstance[] instances = getInstances(name);
-        IMap<Integer, SampleObject> map1 = instances[0].getMap(name);
-        IMap<Integer, SampleObject> map2 = instances[1].getMap(name);
-        int size = 1000;
-
-        for (int i = 0; i < size; i++) {
-            map1.put(i, new SampleObject(i));
-        }
-
-        for (int i = 0; i < size; i++) {
-            SampleObject o = map1.get(i);
-            assertEquals(i + 1, o.version);
-        }
-
-        for (int i = 0; i < size; i++) {
-            SampleObject o = map2.get(i);
-            assertEquals(i + 1, o.version);
-        }
-    }
-
-    @Test
-    public void testProcessedValueCarriedToTheBackup_whenTxnPut() {
-        final String name = randomString();
-        HazelcastInstance[] instances = getInstances(name);
-        IMap<Integer, SampleObject> map1 = instances[0].getMap(name);
-        IMap<Integer, SampleObject> map2 = instances[1].getMap(name);
-        int size = 1000;
-
-        for (int i = 0; i < size; i++) {
-            final int key = i;
-            instances[0].executeTransaction(new TransactionalTask<Object>() {
-                @Override
-                public Object execute(TransactionalTaskContext context) throws TransactionException {
-                    TransactionalMap<Integer, SampleObject> map = context.getMap(name);
-                    map.put(key, new SampleObject(key));
-                    return null;
-                }
-            });
-        }
-
-        for (int i = 0; i < size; i++) {
-            SampleObject o = map1.get(i);
-            assertEquals(i + 1, o.version);
-        }
-
-        for (int i = 0; i < size; i++) {
-            SampleObject o = map2.get(i);
-            assertEquals(i + 1, o.version);
-        }
-    }
-
-    @Test
-    public void testProcessedValueCarriedToTheBackup_whenPutAll() {
-        String name = randomString();
-        HazelcastInstance[] instances = getInstances(name);
-        IMap<Integer, SampleObject> map1 = instances[0].getMap(name);
-        IMap<Integer, SampleObject> map2 = instances[1].getMap(name);
-        int size = 1000;
-
-        Map<Integer, SampleObject> temp = new HashMap<Integer, SampleObject>();
-        for (int i = 0; i < size; i++) {
-            temp.put(i, new SampleObject(i));
-        }
-        map1.putAll(temp);
-
-
-        for (int i = 0; i < size; i++) {
-            SampleObject o = map1.get(i);
-            assertEquals(i + 1, o.version);
-        }
-
-        for (int i = 0; i < size; i++) {
-            SampleObject o = map2.get(i);
-            assertEquals(i + 1, o.version);
-        }
-    }
-
-    HazelcastInstance[] getInstances(String name) {
+    public void testProcessedValueCarriedToTheBackup() {
         TestHazelcastInstanceFactory factory = createHazelcastInstanceFactory(2);
-
+        String name = randomString();
         Config config = new Config();
         MapConfig mapConfig = config.getMapConfig(name);
         mapConfig.setReadBackupData(true);
@@ -125,7 +41,23 @@ public class PostProcessingMapStoreTest extends HazelcastTestSupport {
         HazelcastInstance instance1 = factory.newHazelcastInstance(config);
         HazelcastInstance instance2 = factory.newHazelcastInstance(config);
 
-        return new HazelcastInstance[]{instance1, instance2};
+        IMap<Integer, SampleObject> map1 = instance1.getMap(name);
+        IMap<Integer, SampleObject> map2 = instance2.getMap(name);
+
+        for (int i = 0; i < 100; i++) {
+            map1.put(i, new SampleObject(i));
+        }
+
+        for (int i = 0; i < 100; i++) {
+            SampleObject o = map1.get(i);
+            assertEquals(i + 1, o.version);
+        }
+
+        for (int i = 0; i < 100; i++) {
+            SampleObject o = map2.get(i);
+            assertEquals(i + 1, o.version);
+        }
+
     }
 
     public static class IncrementerPostProcessingMapStore implements MapStore<Integer, SampleObject>, PostProcessingMapStore {

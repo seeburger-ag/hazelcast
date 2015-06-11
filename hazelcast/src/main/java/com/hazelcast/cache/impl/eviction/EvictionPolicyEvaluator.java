@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, Hazelcast, Inc. All Rights Reserved.
+ * Copyright (c) 2008-2015, Hazelcast, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ public interface EvictionPolicyEvaluator<A, E extends Evictable> {
      *
      * @param evictionCandidates Multiple {@link EvictionCandidate} to be evicted
      *
-     * @return multiple {@link EvictionCandidate} these are available to be evicted
+     * @return multiple {@link EvictionCandidate}s that are available to be evicted
      */
     <C extends EvictionCandidate<A, E>> Iterable<C> evaluate(Iterable<C> evictionCandidates);
 

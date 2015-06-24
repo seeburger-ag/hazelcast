@@ -61,6 +61,8 @@ import static com.hazelcast.util.ValidationUtil.isNotNull;
  */
 abstract class BasicInvocation implements Callback<Object>, BackupCompletionCallback {
 
+    private static final long WAIT_RESPONSE_TIMEOUT = Long.getLong("hazelcast.get.timeout.millis", 90000);
+
     private static final Object NULL_RESPONSE = new InternalResponse("Invocation::NULL_RESPONSE");
 
     private static final Object RETRY_RESPONSE = new InternalResponse("Invocation::RETRY_RESPONSE");
@@ -673,7 +675,7 @@ abstract class BasicInvocation implements Callback<Object>, BackupCompletionCall
         @Override
         public E get() throws InterruptedException, ExecutionException {
             try {
-                return get(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+                return get(WAIT_RESPONSE_TIMEOUT, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
                 logger.severe("Unexpected timeout while processing " + this, e);
                 return null;

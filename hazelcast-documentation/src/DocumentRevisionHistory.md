@@ -10,9 +10,10 @@
 |[Chapter 4 - Overview](#overview)||Separated from [Getting Started](#getting-started) as a new chapter.|
 ||[Data Partitioning](#data-partitioning)|Added as a new section explaining how the partitioning works in Hazelcast.|
 |[Chapter 5 - Hazelcast Clusters](#hazelcast-clusters)|[Creating Cluster Groups](#creating-cluster-groups)|Added as a new section explaining how to separate a Hazelcast cluster.|
-|[Chapter 6 - Distributed Data Structures](#distributed-data-structures)|[Map](#map)|The content of the section, previously read as Entry Listener improved and its name changed to [Map Listener](#map-listener).<br><br> Description of the new element `write-coalescing` added to the [Write-Behind section](#write-behind).<br><br> [Incremental Key Loading](#incremental-key-loading) added as a new section.<br><br> [Example Map Eviction Scenario](#example-map-eviction-scenario) added as a new section.<br></br> [MapPartitionLostListener](#mappartitionlostlistener) added as a new section.<br></br>A note stating the change in the return type of the method `loadAllKeys()` added to the [Initialization On Startup section](#initialization-on-startup).|
+|[Chapter 6 - Distributed Data Structures](#distributed-data-structures)|[Map](#map)|The content of the section, previously read as Entry Listener improved and its name changed to [Map Listener](#map-listener).<br><br> Description of the new element `write-coalescing` added to the [Write-Behind section](#write-behind).<br><br> [Incremental Key Loading](#incremental-key-loading) added as a new section.<br><br> [Example Map Eviction Scenario](#example-map-eviction-scenario) added as a new section.<br></br> [MapPartitionLostListener](#mappartitionlostlistener) added as a new section.<br></br>A note stating the change in the return type of the method `loadAllKeys()` added to the [Initialization On Startup section](#initialization-on-startup).<br><br> [Map Eviction](#map-eviction) section updated by adding the definition for the `min-eviction-check-millis` property.|
 ||[Replicated Map](#replicated-map)|[Replicated Map Configuration](#replicated-map-configuration) added as a new section explaining the configuration elements.|
 ||[RingBuffer](#ringbuffer)|Added as a new section.
+||[Reliable Topic](#reliable-topic)|Added as a new section.
 |[Chapter 7 - Distributed Events](#distributed-events)||The whole chapter improved by adding sections describing each listener.|
 ||[Partition Lost Listener](#partition-lost-listener)|Added as a new section.|
 |[Chapter 8 - Distributed Computing](#distributed-computing)|[Execution Member Selector](#execution-member-selector)|Added as a new section explaining how to select a cluster member on which an execution will be performed.|
@@ -21,6 +22,7 @@
 |[Chapter 12 - Hazelcast JCache](#hazelcast-jcache)|[JCache Near Cache](#jcache-near-cache)|Added as a new section explaining the invalidation concept, eviction policies and configuration of JCache's near cache feature.|
 |[Chapter 13 - Integrated Clustering](#integrated-clustering)||Added introduction paragraphs.|
 ||[Tomcat Based Web Session Replication](#tomcat-based-web-session-replication)|Updated the Overview paragraph to include the support for Tomcat 8.
+||[Web Session Replication](#web-session-replication)|[transient-attributes](#transient-attributes) added as a new section.|
 |[Chapter 14 - Storage](#storage)|[Sizing Practices](#sizing-practices)|Added as a new section.|
 |[Chapter 15 - Hazelcast Java Client](#hazelcast-java-client)||Separated from the formerly known "Clients" chapter to be a chapter of its own.|
 |||Added an important note related to the new Java Client library in the chapter introduction.

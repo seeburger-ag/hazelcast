@@ -56,6 +56,11 @@ public class LockProxy extends AbstractDistributedObject<LockServiceImpl> implem
     }
 
     @Override
+    public boolean isLockedBy(Thread thread) {
+        return lockSupport.isLockedBy(getNodeEngine(), key, thread);
+    }
+
+    @Override
     public int getLockCount() {
         return lockSupport.getLockCount(getNodeEngine(), key);
     }

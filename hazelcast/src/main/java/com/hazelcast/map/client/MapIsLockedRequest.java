@@ -44,6 +44,12 @@ public class MapIsLockedRequest extends AbstractIsLockedRequest implements Retry
         this.name = name;
     }
 
+    public MapIsLockedRequest(String name, Data key, long threadId)
+    {
+        super(key, threadId);
+        this.name = name;
+    }
+
     @Override
     public int getFactoryId() {
         return MapPortableHook.F_ID;

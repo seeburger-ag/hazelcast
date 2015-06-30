@@ -284,6 +284,25 @@ public class MapProxyImpl<K, V> extends MapProxySupport implements IMap<K, V>, I
     }
 
     @Override
+    public boolean isLockedByCurrentThread(final K k) {
+        if (k == null) {
+            throw new NullPointerException(NULL_KEY_IS_NOT_ALLOWED);
+        }
+        Data key = getService().toData(k, partitionStrategy);
+        NodeEngine nodeEngine = getNodeEngine();
+        return lockSupport.isLockedByCurrentThread(nodeEngine, key);
+    }
+
+    public boolean isLockedBy(final K k, final Thread thread) {
+        if (k == null) {
+            throw new NullPointerException(NULL_KEY_IS_NOT_ALLOWED);
+        }
+        Data key = getService().toData(k, partitionStrategy);
+        NodeEngine nodeEngine = getNodeEngine();
+        return lockSupport.isLockedBy(nodeEngine, key, thread);
+    }
+
+    @Override
     public Future putAsync(final K key, final V value) {
         return putAsync(key, value, -1, null);
     }

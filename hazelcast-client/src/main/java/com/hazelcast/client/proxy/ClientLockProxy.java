@@ -57,6 +57,12 @@ public class ClientLockProxy extends ClientProxy implements ILock {
         return result;
     }
 
+    public boolean isLockedBy(Thread thread) {
+        IsLockedRequest request = new IsLockedRequest(getKeyData(), thread.getId());
+        Boolean result = invoke(request);
+        return result;
+    }
+
     public int getLockCount() {
         GetLockCountRequest request = new GetLockCountRequest(getKeyData());
         return (Integer) invoke(request);

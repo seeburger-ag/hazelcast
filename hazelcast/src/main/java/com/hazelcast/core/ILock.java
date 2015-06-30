@@ -113,6 +113,14 @@ public interface ILock extends Lock, DistributedObject {
     boolean isLockedByCurrentThread();
 
     /**
+     * Returns whether this lock is locked by the provided thread or not.
+     *
+     * @param thread thread to be checked for ownership of the lock
+     * @return {@code true} if this lock is locked by the provided thread, {@code false} otherwise.
+     */
+    boolean isLockedBy(Thread thread);
+
+    /**
      * Returns re-entrant lock hold count, regardless of lock ownership.
      *
      * @return lock hold count.

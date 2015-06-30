@@ -58,6 +58,12 @@ public final class LockProxySupport {
         return f.getSafely();
     }
 
+    public boolean isLockedBy(NodeEngine nodeEngine, Data key, Thread thread) {
+        IsLockedOperation operation = new IsLockedOperation(namespace, key, thread.getId());
+        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+        return f.getSafely();
+    }
+
     public int getLockCount(NodeEngine nodeEngine, Data key) {
         Operation operation = new GetLockCountOperation(namespace, key);
         InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);

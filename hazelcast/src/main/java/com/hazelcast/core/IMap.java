@@ -601,6 +601,41 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
     boolean isLocked(K key);
 
     /**
+     * Checks if the lock for the specified key is owned by the current thread.
+     * <p>
+     * If the lock is acquired then returns true, else false.
+     * <p/>
+     * <p>
+     * <b>Warning:</b>
+     * </p>
+     * This method uses <tt>hashCode</tt> and <tt>equals</tt> of binary form of the <tt>key</tt>, not the actual implementations of
+     * <tt>hashCode</tt> and <tt>equals</tt> defined in <tt>key</tt>'s class.
+     *
+     * @param key key to lock to be checked.
+     * @return <tt>true</tt> if lock is acquired, <tt>false</tt> otherwise.
+     * @throws NullPointerException if the specified key is null
+     */
+    boolean isLockedByCurrentThread(K key);
+
+    /**
+     * Checks if the lock for the specified key is owned by the provided thread.
+     * <p>
+     * If the lock is acquired then returns true, else false.
+     * <p/>
+     * <p>
+     * <b>Warning:</b>
+     * </p>
+     * This method uses <tt>hashCode</tt> and <tt>equals</tt> of binary form of the <tt>key</tt>, not the actual implementations of
+     * <tt>hashCode</tt> and <tt>equals</tt> defined in <tt>key</tt>'s class.
+     *
+     * @param key key to lock to be checked.
+     * @param thread thread to be checked for ownership of the key.
+     * @return <tt>true</tt> if lock is acquired, <tt>false</tt> otherwise.
+     * @throws NullPointerException if the specified key is null
+     */
+    boolean isLockedBy(K key, Thread thread);
+
+    /**
      * Tries to acquire the lock for the specified key.
      * <p>If the lock is not available then the current thread
      * doesn't wait and returns false immediately.

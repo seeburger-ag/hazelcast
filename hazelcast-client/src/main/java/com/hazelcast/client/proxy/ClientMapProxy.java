@@ -361,6 +361,22 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
     }
 
     @Override
+    public boolean isLockedByCurrentThread(K key) {
+        final Data keyData = toData(key);
+        MapIsLockedRequest request = new MapIsLockedRequest(name, keyData, ThreadUtil.getThreadId());
+        Boolean result = invoke(request, keyData);
+        return result;
+    }
+
+    @Override
+    public boolean isLockedBy(K key, Thread thread) {
+        final Data keyData = toData(key);
+        MapIsLockedRequest request = new MapIsLockedRequest(name, keyData, thread.getId());
+        Boolean result = invoke(request, keyData);
+        return result;
+    }
+
+    @Override
     public boolean tryLock(K key) {
         try {
             return tryLock(key, 0, null);

@@ -223,7 +223,6 @@
                         </goals>
                         <configuration>
                             <finalName>${project.build.finalName}</finalName>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <createSourcesJar>true</createSourcesJar>
                             <shadeSourcesContent>true</shadeSourcesContent>
                             <artifactSet>
@@ -264,6 +263,12 @@
             <artifactId>cache-tests</artifactId>
             <version>1.0.0</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>test-domain</artifactId>
+                    <groupId>javax.cache</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>

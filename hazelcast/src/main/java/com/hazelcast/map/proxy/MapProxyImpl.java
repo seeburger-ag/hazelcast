@@ -371,6 +371,20 @@ public class MapProxyImpl<K, V> extends MapProxySupport implements IMap<K, V>, I
         return lockSupport.tryLock(nodeEngine, k, time, timeunit);
     }
 
+
+
+
+    @Override
+    public boolean tryLock(K key, long tryTime, TimeUnit tryTimeTimeUnit, long leaseTime, TimeUnit leaseTimeTimeUnit) throws InterruptedException
+    {
+        if (key == null) {
+            throw new NullPointerException(NULL_KEY_IS_NOT_ALLOWED);
+        }
+        final NodeEngine nodeEngine = getNodeEngine();
+        Data k = getService().toData(key, partitionStrategy);
+        return lockSupport.tryLock(nodeEngine, k, tryTime, tryTimeTimeUnit, leaseTime, leaseTimeTimeUnit);
+    }
+
     @Override
     public void forceUnlock(final K key) {
         if (key == null) {

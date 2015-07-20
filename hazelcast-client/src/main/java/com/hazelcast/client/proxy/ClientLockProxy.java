@@ -16,6 +16,7 @@
 
 package com.hazelcast.client.proxy;
 
+
 import com.hazelcast.client.ClientRequest;
 import com.hazelcast.client.spi.ClientProxy;
 import com.hazelcast.concurrent.lock.client.*;
@@ -29,116 +30,172 @@ import java.util.concurrent.locks.Condition;
 
 import static com.hazelcast.util.ValidationUtil.shouldBePositive;
 
+
 /**
  * @author ali 5/28/13
  */
-public class ClientLockProxy extends ClientProxy implements ILock {
+public class ClientLockProxy extends ClientProxy implements ILock
+{
 
     private volatile Data key;
 
-    public ClientLockProxy(String instanceName, String serviceName, String objectId) {
+
+    public ClientLockProxy(String instanceName, String serviceName, String objectId)
+    {
         super(instanceName, serviceName, objectId);
     }
 
+
     @Deprecated
-    public Object getKey() {
+    public Object getKey()
+    {
         return getName();
     }
 
-    public boolean isLocked() {
+
+    public boolean isLocked()
+    {
         IsLockedRequest request = new IsLockedRequest(getKeyData());
         Boolean result = invoke(request);
         return result;
     }
 
-    public boolean isLockedByCurrentThread() {
+
+    public boolean isLockedByCurrentThread()
+    {
         IsLockedRequest request = new IsLockedRequest(getKeyData(), ThreadUtil.getThreadId());
         Boolean result = invoke(request);
         return result;
     }
 
-    public boolean isLockedBy(Thread thread) {
+
+    public boolean isLockedBy(Thread thread)
+    {
         IsLockedRequest request = new IsLockedRequest(getKeyData(), thread.getId());
         Boolean result = invoke(request);
         return result;
     }
 
-    public int getLockCount() {
+
+    public int getLockCount()
+    {
         GetLockCountRequest request = new GetLockCountRequest(getKeyData());
-        return (Integer) invoke(request);
+        return (Integer)invoke(request);
     }
 
-    public long getRemainingLeaseTime() {
+
+    public long getRemainingLeaseTime()
+    {
         GetRemainingLeaseRequest request = new GetRemainingLeaseRequest(getKeyData());
-        return (Long) invoke(request);
+        return (Long)invoke(request);
     }
 
-    public void lock(long leaseTime, TimeUnit timeUnit) {
+
+    public void lock(long leaseTime, TimeUnit timeUnit)
+    {
         shouldBePositive(leaseTime, "leaseTime");
         LockRequest request = new LockRequest(getKeyData(), ThreadUtil.getThreadId(), getTimeInMillis(leaseTime, timeUnit), -1);
         invoke(request);
     }
 
-    public void forceUnlock() {
+
+    public void forceUnlock()
+    {
         UnlockRequest request = new UnlockRequest(getKeyData(), ThreadUtil.getThreadId(), true);
         invoke(request);
     }
 
-    public ICondition newCondition(String name) {
+
+    public ICondition newCondition(String name)
+    {
         return new ClientConditionProxy(instanceName, this, name, getContext());
     }
 
-    public void lock() {
+
+    public void lock()
+    {
         lock(Long.MAX_VALUE, null);
     }
 
-    public void lockInterruptibly() throws InterruptedException {
+
+    public void lockInterruptibly() throws InterruptedException
+    {
         lock();
     }
 
-    public boolean tryLock() {
-        try {
+
+    public boolean tryLock()
+    {
+        try
+        {
             return tryLock(0, null);
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e)
+        {
             return false;
         }
     }
 
-    public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+
+    public boolean tryLock(long time, TimeUnit unit) throws InterruptedException
+    {
         LockRequest request = new LockRequest(getKeyData(), ThreadUtil.getThreadId(), Long.MAX_VALUE, getTimeInMillis(time, unit));
         Boolean result = invoke(request);
         return result;
     }
 
-    public void unlock() {
+
+    @Override
+    public boolean tryLock(long tryTime, TimeUnit tryTimeTimeUnit, long leaseTime, TimeUnit leaseTimeTimeUnit) throws InterruptedException
+    {
+        LockRequest request = new LockRequest(getKeyData(), ThreadUtil.getThreadId(), getTimeInMillis(leaseTime, leaseTimeTimeUnit), getTimeInMillis(tryTime, tryTimeTimeUnit));
+        Boolean result = invoke(request);
+        return result;
+    }
+
+
+    public void unlock()
+    {
         UnlockRequest request = new UnlockRequest(getKeyData(), ThreadUtil.getThreadId());
         invoke(request);
     }
 
-    public Condition newCondition() {
+
+    public Condition newCondition()
+    {
         throw new UnsupportedOperationException();
     }
 
-    protected void onDestroy() {
-    }
 
-    private Data getKeyData() {
-        if (key == null) {
+    protected void onDestroy()
+    {}
+
+
+    private Data getKeyData()
+    {
+        if (key == null)
+        {
             key = toData(getName());
         }
         return key;
     }
 
-    private long getTimeInMillis(final long time, final TimeUnit timeunit) {
+
+    private long getTimeInMillis(final long time, final TimeUnit timeunit)
+    {
         return timeunit != null ? timeunit.toMillis(time) : time;
     }
 
-    protected  <T> T invoke(ClientRequest req) {
+
+    protected <T> T invoke(ClientRequest req)
+    {
         return super.invoke(req, getKeyData());
     }
 
+
     @Override
-    public String toString() {
+    public String toString()
+    {
         return "ILock{" + "name='" + getName() + '\'' + '}';
     }
 }

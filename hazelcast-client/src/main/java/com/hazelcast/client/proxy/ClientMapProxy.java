@@ -393,6 +393,18 @@ public final class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V
         return result;
     }
 
+
+
+
+    @Override
+    public boolean tryLock(K key, long tryTime, TimeUnit tryTimeTimeUnit, long leaseTime, TimeUnit leaseTimeTimeUnit) throws InterruptedException
+    {
+        final Data keyData = toData(key);
+        MapLockRequest request = new MapLockRequest(name, keyData, ThreadUtil.getThreadId(), getTimeInMillis(leaseTime, leaseTimeTimeUnit), getTimeInMillis(tryTime, tryTimeTimeUnit));
+        Boolean result = invoke(request, keyData);
+        return result;
+    }
+
     @Override
     public void unlock(K key) {
         final Data keyData = toData(key);

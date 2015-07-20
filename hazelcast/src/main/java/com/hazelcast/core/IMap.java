@@ -675,6 +675,24 @@ public interface IMap<K, V> extends ConcurrentMap<K, V>, BaseMap<K, V> {
      */
     boolean tryLock(K key, long time, TimeUnit timeunit) throws InterruptedException;
 
+
+    /**
+     * Tries to acquire the lock for the provided key for the specified lease time.
+     * <p/>
+     * <p>If the lock is not available then
+     * the current thread becomes disabled for thread scheduling
+     * purposes and lies dormant until the lock has been acquired or the try-time has elapsed.
+     * <p/>
+     *
+     * @param key - key of the record to be locked.
+     * @param tryTime time to spend trying to acquire the lock
+     * @param tryTimeTimeUnit unit of time to specify try time
+     * @param leaseTime time to wait before releasing the lock.
+     * @param leaseTimeTimeUnit unit of time to specify lease time.
+     */
+    boolean tryLock(K key, long tryTime, TimeUnit tryTimeTimeUnit, long leaseTime, TimeUnit leaseTimeTimeUnit) throws InterruptedException;
+
+
     /**
      * Releases the lock for the specified key. It never blocks and
      * returns immediately.

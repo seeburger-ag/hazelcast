@@ -100,6 +100,18 @@ public class LockProxy extends AbstractDistributedObject<LockServiceImpl> implem
         return lockSupport.tryLock(getNodeEngine(), key, time, unit);
     }
 
+
+
+    @Override
+    public boolean tryLock(long tryTime, TimeUnit tryTimeTimeUnit, long leaseTime, TimeUnit leaseTimeTimeUnit) throws InterruptedException
+    {
+        if (tryTimeTimeUnit == null || leaseTimeTimeUnit == null) {
+            throw new NullPointerException("unit can't be null");
+        }
+
+        return lockSupport.tryLock(getNodeEngine(), key, tryTime, tryTimeTimeUnit, leaseTime, leaseTimeTimeUnit);
+    }
+
     @Override
     public void unlock() {
         lockSupport.unlock(getNodeEngine(), key);

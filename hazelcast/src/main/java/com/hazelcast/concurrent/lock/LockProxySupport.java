@@ -16,6 +16,7 @@
 
 package com.hazelcast.concurrent.lock;
 
+
 import com.hazelcast.concurrent.lock.operations.GetLockCountOperation;
 import com.hazelcast.concurrent.lock.operations.GetRemainingLeaseTimeOperation;
 import com.hazelcast.concurrent.lock.operations.IsLockedOperation;
@@ -33,99 +34,152 @@ import static com.hazelcast.concurrent.lock.LockServiceImpl.SERVICE_NAME;
 import static com.hazelcast.util.ExceptionUtil.rethrowAllowInterrupted;
 import static com.hazelcast.util.ThreadUtil.getThreadId;
 
-public final class LockProxySupport {
+
+public final class LockProxySupport
+{
 
     private final ObjectNamespace namespace;
 
-    public LockProxySupport(ObjectNamespace namespace) {
+
+    public LockProxySupport(ObjectNamespace namespace)
+    {
         this.namespace = namespace;
     }
 
-    public boolean isLocked(NodeEngine nodeEngine, Data key) {
+
+    public boolean isLocked(NodeEngine nodeEngine, Data key)
+    {
         IsLockedOperation operation = new IsLockedOperation(namespace, key);
         InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         return f.getSafely();
     }
 
-    private InternalCompletableFuture invoke(NodeEngine nodeEngine, Operation operation, Data key) {
+
+    private InternalCompletableFuture invoke(NodeEngine nodeEngine, Operation operation, Data key)
+    {
         int partitionId = nodeEngine.getPartitionService().getPartitionId(key);
         return nodeEngine.getOperationService().invokeOnPartition(SERVICE_NAME, operation, partitionId);
     }
 
-    public boolean isLockedByCurrentThread(NodeEngine nodeEngine, Data key) {
+
+    public boolean isLockedByCurrentThread(NodeEngine nodeEngine, Data key)
+    {
         IsLockedOperation operation = new IsLockedOperation(namespace, key, getThreadId());
         InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         return f.getSafely();
     }
 
-    public boolean isLockedBy(NodeEngine nodeEngine, Data key, Thread thread) {
+
+    public boolean isLockedBy(NodeEngine nodeEngine, Data key, Thread thread)
+    {
         IsLockedOperation operation = new IsLockedOperation(namespace, key, thread.getId());
         InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
         return f.getSafely();
     }
 
-    public int getLockCount(NodeEngine nodeEngine, Data key) {
+
+    public int getLockCount(NodeEngine nodeEngine, Data key)
+    {
         Operation operation = new GetLockCountOperation(namespace, key);
         InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         return f.getSafely().intValue();
     }
 
-    public long getRemainingLeaseTime(NodeEngine nodeEngine, Data key) {
+
+    public long getRemainingLeaseTime(NodeEngine nodeEngine, Data key)
+    {
         Operation operation = new GetRemainingLeaseTimeOperation(namespace, key);
         InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         return f.getSafely().longValue();
     }
 
-    public void lock(NodeEngine nodeEngine, Data key) {
+
+    public void lock(NodeEngine nodeEngine, Data key)
+    {
         lock(nodeEngine, key, -1);
     }
 
-    public void lock(NodeEngine nodeEngine, Data key, long ttl) {
+
+    public void lock(NodeEngine nodeEngine, Data key, long ttl)
+    {
         LockOperation operation = new LockOperation(namespace, key, getThreadId(), ttl, -1);
         InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
-        if (!f.getSafely()) {
+        if (!f.getSafely())
+        {
             throw new IllegalStateException();
         }
     }
 
-    public boolean tryLock(NodeEngine nodeEngine, Data key) {
-        try {
+
+    public boolean tryLock(NodeEngine nodeEngine, Data key)
+    {
+        try
+        {
             return tryLock(nodeEngine, key, 0, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e)
+        {
             return false;
         }
     }
 
-    public boolean tryLock(NodeEngine nodeEngine, Data key, long timeout, TimeUnit timeunit)
-            throws InterruptedException {
-        LockOperation operation = new LockOperation(namespace, key, getThreadId(),
-                getTimeInMillis(timeout, timeunit));
+
+    public boolean tryLock(NodeEngine nodeEngine, Data key, long timeout, TimeUnit timeunit) throws InterruptedException
+    {
+        LockOperation operation = new LockOperation(namespace, key, getThreadId(), getTimeInMillis(timeout, timeunit));
         InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
 
-        try {
+        try
+        {
             return f.get();
-        } catch (Throwable t) {
+        }
+        catch (Throwable t)
+        {
             throw rethrowAllowInterrupted(t);
         }
     }
 
-    private long getTimeInMillis(final long time, final TimeUnit timeunit) {
+
+    public boolean tryLock(NodeEngine nodeEngine, Data key, long tryTime, TimeUnit tryTimeUnit, long leaseTime, TimeUnit leaseTimeUnit) throws InterruptedException
+    {
+        LockOperation operation = new LockOperation(namespace, key, getThreadId(), getTimeInMillis(leaseTime, leaseTimeUnit), getTimeInMillis(tryTime, tryTimeUnit));
+        InternalCompletableFuture<Boolean> f = invoke(nodeEngine, operation, key);
+
+        try
+        {
+            return f.get();
+        }
+        catch (Throwable t)
+        {
+            throw rethrowAllowInterrupted(t);
+        }
+    }
+
+
+    private long getTimeInMillis(final long time, final TimeUnit timeunit)
+    {
         return timeunit != null ? timeunit.toMillis(time) : time;
     }
 
-    public void unlock(NodeEngine nodeEngine, Data key) {
+
+    public void unlock(NodeEngine nodeEngine, Data key)
+    {
         UnlockOperation operation = new UnlockOperation(namespace, key, getThreadId());
         InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         f.getSafely();
     }
 
-    public void forceUnlock(NodeEngine nodeEngine, Data key) {
+
+    public void forceUnlock(NodeEngine nodeEngine, Data key)
+    {
         UnlockOperation operation = new UnlockOperation(namespace, key, -1, true);
         InternalCompletableFuture<Number> f = invoke(nodeEngine, operation, key);
         f.getSafely();
     }
 
-    public ObjectNamespace getNamespace() {
+
+    public ObjectNamespace getNamespace()
+    {
         return namespace;
     }
 }

@@ -1080,7 +1080,8 @@ public class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V> {
         checkNotNull(key, NULL_KEY_IS_NOT_ALLOWED);
         final Data keyData = toData(key);
         ClientMessage request = MapExecuteOnKeyCodec.encodeRequest(name, toData(entryProcessor), keyData);
-        return invoke(request, keyData);
+        ClientMessage response = invoke(request, keyData);
+        return toObject(MapExecuteOnKeyCodec.decodeResponse(response).response);
     }
 
     public void submitToKey(K key, EntryProcessor entryProcessor, final ExecutionCallback callback) {
@@ -1088,8 +1089,11 @@ public class ClientMapProxy<K, V> extends ClientProxy implements IMap<K, V> {
         final Data keyData = toData(key);
         ClientMessage request = MapSubmitToKeyCodec.encodeRequest(name, toData(entryProcessor), keyData);
         try {
-            final ICompletableFuture future = invokeOnKeyOwner(request, keyData);
-            future.andThen(callback);
+            ClientInvocationFuture future = invokeOnKeyOwner(request, keyData);
+            SerializationService serializationService = getContext().getSerializationService();
+            ClientDelegatingFuture clientDelegatingFuture =
+                    new ClientDelegatingFuture(future, serializationService, submitToKeyResponseDecoder);
+            clientDelegatingFuture.andThen(callback);
         } catch (Exception e) {
             throw ExceptionUtil.rethrow(e);
         }

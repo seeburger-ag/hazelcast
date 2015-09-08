@@ -26,7 +26,11 @@
     <parent>
         <groupId>com.seeburger.as</groupId>
         <artifactId>hazelcast-ra</artifactId>
+<<<<<<< HEAD
         <version>3.5.3.SEE1-SNAPSHOT</version>
+=======
+        <version>3.5.3-SNAPSHOT</version>
+>>>>>>> refs/remotes/hz/maintenance-3.x
         <relativePath>../pom.xml</relativePath>
     </parent>
 

@@ -23,7 +23,11 @@
     <groupId>com.seeburger.as</groupId>
     <artifactId>hazelcast-root</artifactId>
     <packaging>pom</packaging>
+<<<<<<< HEAD
     <version>3.5.3.SEE1-SNAPSHOT</version>
+=======
+    <version>3.5.3-SNAPSHOT</version>
+>>>>>>> refs/remotes/hz/maintenance-3.x
     <name>Hazelcast Root</name>
     <description>Hazelcast In-Memory DataGrid</description>
     <url>http://www.hazelcast.com/</url>

@@ -21,7 +21,7 @@ import com.hazelcast.nio.serialization.PortableWriter;
 
 import java.io.IOException;
 
-public abstract class BaseClientRemoveListenerRequest extends CallableClientRequest {
+public abstract class BaseClientRemoveListenerRequest extends CallableClientRequest implements RetryableRequest {
 
     protected String name;
     protected String registrationId;
@@ -33,6 +33,13 @@ public abstract class BaseClientRemoveListenerRequest extends CallableClientRequ
         this.name = name;
         this.registrationId = registrationId;
     }
+
+    public final Object call() {
+        endpoint.removeDestroyAction(registrationId);
+        return deRegisterListener();
+    }
+
+    protected abstract boolean deRegisterListener();
 
     public String getRegistrationId() {
         return registrationId;
@@ -68,7 +75,7 @@ public abstract class BaseClientRemoveListenerRequest extends CallableClientRequ
     }
 
     @Override
-    public Object[] getParameters() {
+    public final Object[] getParameters() {
         return new Object[]{registrationId};
     }
 }
